@@ -382,3 +382,114 @@
 .editor-stat-divider {
     color: var(--text-muted);
 }
+
+/* --- Premium Font Classes --- */
+.editor-content.font-roboto { font-family: 'Roboto', sans-serif; }
+.editor-content.font-montserrat { font-family: 'Montserrat', sans-serif; }
+.editor-content.font-great-vibes { font-family: 'Great Vibes', cursive; font-size: 1.45em !important; }
+.editor-content.font-cinzel { font-family: 'Cinzel', serif; }
+.editor-content.font-cormorant { font-family: 'Cormorant Garamond', serif; }
+.editor-content.font-comfortaa { font-family: 'Comfortaa', cursive; }
+.editor-content.font-sacramento { font-family: 'Sacramento', cursive; font-size: 1.45em !important; }
+.editor-content.font-special-elite { font-family: 'Special Elite', cursive; }
+.editor-content.font-amatic { font-family: 'Amatic SC', cursive; font-size: 1.55em !important; font-weight: 700; }
+.editor-content.font-playfair { font-family: 'Playfair Display', serif; }
+.editor-content.font-outfit { font-family: 'Outfit', sans-serif; }
+.editor-content.font-architects { font-family: 'Architects Daughter', cursive; font-size: 1.15em !important; }
+.editor-content.font-abril { font-family: 'Abril Fatface', serif; font-size: 1.15em !important; }
+.editor-content.font-poiret { font-family: 'Poiret One', cursive; font-weight: 600; }
+.editor-content.font-josefin { font-family: 'Josefin Sans', sans-serif; }
+.editor-content.font-satisfy { font-family: 'Satisfy', cursive; font-size: 1.35em !important; }
+.editor-content.font-shadows { font-family: 'Shadows Into Light', cursive; font-size: 1.25em !important; }
+
+/* --- Editor Dropdowns (Font & Size Picker) --- */
+.editor-dropdown {
+    position: absolute;
+    bottom: 55px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: var(--radius-md);
+    padding: var(--space-xs);
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 1000;
+    box-shadow: var(--shadow-lg);
+    min-width: 200px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.editor-dropdown.active {
+    display: flex;
+}
+
+.font-option, .size-option {
+    background: transparent;
+    border: none;
+    padding: 8px 12px;
+    text-align: left;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    border-radius: var(--radius-sm);
+    transition: background-color var(--transition-fast);
+    width: 100%;
+}
+
+.font-option:hover, .size-option:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.font-option.active, .size-option.active {
+    background: var(--accent);
+    color: #FFFFFF;
+}
+
+/* Ensure the editor content maintains spacing and scroll */
+.editor-body-wrapper {
+    position: relative;
+}
+
+/* Color and Highlight Pickers styling */
+.editor-dropdown.grid-layout {
+    display: none;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    padding: 10px;
+    min-width: 230px;
+}
+
+.editor-dropdown.grid-layout.active {
+    display: grid;
+}
+
+.color-circle {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform var(--transition-fast), border-color var(--transition-fast);
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.color-circle:hover {
+    transform: scale(1.15);
+}
+
+.color-circle.active {
+    border-color: var(--accent);
+    transform: scale(1.1);
+    box-shadow: 0 2px 6px var(--accent-glow);
+}
+
+.color-circle--clear {
+    background: linear-gradient(135deg, #fff 45%, #ff0000 45%, #ff0000 55%, #fff 55%);
+    border: 1px solid var(--border);
+}
+

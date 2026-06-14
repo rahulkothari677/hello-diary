@@ -234,6 +234,8 @@ const HelloApp = (function() {
     // Editor state
     let activeEntryId = null; 
     let activeEntryDate = null;
+    let editorDirty = false;
+    let autoSaveIntervalId = null;
 
     /**
      * Returns the current volatile session key.
@@ -273,6 +275,10 @@ const HelloApp = (function() {
             initSetupFlow();
             initLockFlow();
             initDashboardControllers();
+            initEditorControllers();
+
+            // Start Auto-save Engine
+            startAutoSaveInterval();
 
             // 7. Redirect to Setup screen or Lock screen
             const hasCredentials = await HelloDB.hasCredentials();
@@ -1224,11 +1230,18 @@ const HelloApp = (function() {
         return { title, content };
     }
 
-    function openNewEditor() {
+    async function openNewEditor() {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById('screen-editor').classList.add('active');
         
-        const dateStr = new Date(activeEntryDate || Date.now()).toLocaleDateString('en-US', {
+        // Pre-generate ID for auto-save draft capability
+        activeEntryId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+        );
+        activeEntryDate = Date.now();
+        editorDirty = false;
+        
+        const dateStr = new Date(activeEntryDate).toLocaleDateString('en-US', {
             month: 'long',
             day: 'numeric',
             year: 'numeric'
@@ -1242,16 +1255,23 @@ const HelloApp = (function() {
         
         document.getElementById('editor-tags-list').innerHTML = '';
         
+        const saveBadge = document.getElementById('save-indicator-badge');
+        if (saveBadge) saveBadge.classList.remove('show');
+        
+        await applyPreferredTypography();
+        updateEditorStats();
+        
         const devSelect = document.querySelector('#dev-screens-toggle-panel select');
         if (devSelect) devSelect.value = 'screen-editor';
     }
 
-    function openEntryForEditing(entry) {
+    async function openEntryForEditing(entry) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById('screen-editor').classList.add('active');
         
         activeEntryId = entry.id;
         activeEntryDate = entry.date;
+        editorDirty = false;
         
         const dateStr = new Date(entry.date).toLocaleDateString('en-US', {
             month: 'long',
@@ -1269,8 +1289,14 @@ const HelloApp = (function() {
         const tagsList = document.getElementById('editor-tags-list');
         tagsList.innerHTML = '';
         if (entry.tags) {
-            entry.tags.forEach(t => appendTagPill(t));
+            entry.tags.forEach(t => appendTagPill(t, false));
         }
+        
+        const saveBadge = document.getElementById('save-indicator-badge');
+        if (saveBadge) saveBadge.classList.remove('show');
+        
+        await applyPreferredTypography();
+        updateEditorStats();
         
         const devSelect = document.querySelector('#dev-screens-toggle-panel select');
         if (devSelect) devSelect.value = 'screen-editor';
@@ -1298,14 +1324,28 @@ const HelloApp = (function() {
         };
         
         try {
-            if (activeEntryId) {
-                entryObj.id = activeEntryId;
-                await HelloDB.updateEntry(entryObj, sessionKey);
-                showToast('Entry updated successfully! ✓');
-            } else {
-                await HelloDB.insertEntry(entryObj, sessionKey);
-                showToast('Entry saved successfully! ✓');
+            if (!activeEntryId) {
+                activeEntryId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+                    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+                );
             }
+            entryObj.id = activeEntryId;
+            
+            await HelloDB.updateEntry(entryObj, sessionKey);
+            editorDirty = false;
+            
+            const saveBadge = document.getElementById('save-indicator-badge');
+            if (saveBadge) {
+                saveBadge.textContent = 'Auto-Saved';
+                saveBadge.classList.add('show');
+                setTimeout(() => {
+                    if (saveBadge.textContent === 'Auto-Saved') {
+                        saveBadge.classList.remove('show');
+                    }
+                }, 2000);
+            }
+            
+            showToast('Entry saved successfully! ✓');
             await loadAndRenderDashboard();
         } catch (err) {
             console.error('Failed to save entry:', err);
@@ -1313,7 +1353,7 @@ const HelloApp = (function() {
         }
     }
 
-    function appendTagPill(tagName) {
+    function appendTagPill(tagName, isUserAction = false) {
         if (!tagName) return;
         const formatted = tagName.trim().toLowerCase().replace('#', '');
         if (!formatted) return;
@@ -1335,9 +1375,136 @@ const HelloApp = (function() {
         
         pill.querySelector('.tag-remove').addEventListener('click', () => {
             pill.remove();
+            editorDirty = true;
+            const saveBadge = document.getElementById('save-indicator-badge');
+            if (saveBadge) {
+                saveBadge.textContent = 'Unsaved Changes';
+                saveBadge.classList.add('show');
+            }
         });
         
         tagsList.appendChild(pill);
+        
+        if (isUserAction) {
+            editorDirty = true;
+            const saveBadge = document.getElementById('save-indicator-badge');
+            if (saveBadge) {
+                saveBadge.textContent = 'Unsaved Changes';
+                saveBadge.classList.add('show');
+            }
+        }
+    }
+
+    /* Auto-save Helpers */
+    function startAutoSaveInterval() {
+        if (autoSaveIntervalId) clearInterval(autoSaveIntervalId);
+        autoSaveIntervalId = setInterval(async () => {
+            const editorScreen = document.getElementById('screen-editor');
+            if (editorScreen && editorScreen.classList.contains('active') && editorDirty && sessionKey) {
+                await autoSaveDraft();
+            }
+        }, 30000); // 30s
+    }
+
+    async function autoSaveDraft() {
+        if (!sessionKey || !editorDirty) return;
+        
+        const html = document.getElementById('rich-editor-field').innerHTML;
+        const { title, content } = extractTitleAndBody(html);
+        
+        const selectedMoodBtn = document.querySelector('.mood-picker .mood-btn.selected');
+        const moodVal = selectedMoodBtn ? parseInt(selectedMoodBtn.dataset.mood) : 5;
+        
+        const tags = [];
+        document.querySelectorAll('#editor-tags-list .tag-pill').forEach(pill => {
+            const text = pill.textContent.replace('×', '').trim().replace('#', '');
+            if (text) tags.push(text);
+        });
+        
+        const entryObj = {
+            title: title,
+            content: content,
+            tags: tags,
+            mood: moodVal,
+            date: activeEntryDate || Date.now()
+        };
+        
+        const saveBadge = document.getElementById('save-indicator-badge');
+        if (saveBadge) {
+            saveBadge.textContent = 'Saving...';
+            saveBadge.classList.add('show');
+        }
+        
+        try {
+            if (!activeEntryId) {
+                activeEntryId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+                    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+                );
+            }
+            entryObj.id = activeEntryId;
+            
+            await HelloDB.updateEntry(entryObj, sessionKey);
+            editorDirty = false;
+            
+            if (saveBadge) {
+                saveBadge.textContent = 'Auto-Saved';
+                setTimeout(() => {
+                    if (saveBadge.textContent === 'Auto-Saved') {
+                        saveBadge.classList.remove('show');
+                    }
+                }, 2000);
+            }
+            await loadAndRenderDashboard();
+        } catch (err) {
+            console.error('Failed to auto-save:', err);
+            if (saveBadge) {
+                saveBadge.textContent = 'Save Error';
+                saveBadge.classList.add('show');
+            }
+        }
+    }
+
+    async function applyPreferredTypography() {
+        const prefFont = await HelloDB.getSetting('preferred-font') || 'font-merriweather';
+        const prefSize = await HelloDB.getSetting('preferred-size') || 'size-medium';
+        
+        const editorField = document.getElementById('rich-editor-field');
+        if (editorField) {
+            editorField.className.split(' ').forEach(cls => {
+                if (cls.startsWith('font-') || cls.startsWith('size-')) {
+                    editorField.classList.remove(cls);
+                }
+            });
+            editorField.classList.add(prefFont);
+            editorField.classList.add(prefSize);
+        }
+        
+        document.querySelectorAll('.font-option').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.font === prefFont);
+        });
+        document.querySelectorAll('.size-option').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.size === prefSize);
+        });
+    }
+
+    function updateEditorStats() {
+        const editorField = document.getElementById('rich-editor-field');
+        if (!editorField) return;
+        
+        const text = editorField.textContent || '';
+        const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+        const wordCount = words.length;
+        const readTime = Math.max(1, Math.ceil(wordCount / 200));
+        
+        const wordCountEl = document.getElementById('editor-word-count');
+        const readTimeEl = document.getElementById('editor-read-time');
+        
+        if (wordCountEl) {
+            wordCountEl.textContent = `${wordCount} word${wordCount !== 1 ? 's' : ''}`;
+        }
+        if (readTimeEl) {
+            readTimeEl.textContent = `${readTime} min read`;
+        }
     }
 
     function openViewModal(entry) {
@@ -1583,12 +1750,12 @@ const HelloApp = (function() {
         
         if (tagAddConfirm && tagModal && tagInput) {
             tagAddConfirm.addEventListener('click', () => {
-                appendTagPill(tagInput.value);
+                appendTagPill(tagInput.value, true);
                 tagModal.classList.remove('active');
             });
             tagInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
-                    appendTagPill(tagInput.value);
+                    appendTagPill(tagInput.value, true);
                     tagModal.classList.remove('active');
                 }
             });
@@ -1596,7 +1763,7 @@ const HelloApp = (function() {
         
         document.querySelectorAll('.tag-suggestion').forEach(btn => {
             btn.addEventListener('click', () => {
-                appendTagPill(btn.dataset.tag);
+                appendTagPill(btn.dataset.tag, true);
                 if (tagModal) tagModal.classList.remove('active');
             });
         });
@@ -1605,6 +1772,234 @@ const HelloApp = (function() {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.mood-picker .mood-btn').forEach(b => b.classList.remove('selected'));
                 btn.classList.add('selected');
+                editorDirty = true;
+                const saveBadge = document.getElementById('save-indicator-badge');
+                if (saveBadge) {
+                    saveBadge.textContent = 'Unsaved Changes';
+                    saveBadge.classList.add('show');
+                }
+            });
+        });
+    }
+
+    /**
+     * Binds all editor toolbar, dropdown, and typography controls for Step 5.
+     */
+    function initEditorControllers() {
+        const editorField = document.getElementById('rich-editor-field');
+        if (!editorField) return;
+
+        // 1. Text input listener for stats & dirty state
+        editorField.addEventListener('input', () => {
+            editorDirty = true;
+            const saveBadge = document.getElementById('save-indicator-badge');
+            if (saveBadge) {
+                saveBadge.textContent = 'Unsaved Changes';
+                saveBadge.classList.add('show');
+            }
+            updateEditorStats();
+        });
+
+        // 2. Toolbar simple commands
+        document.querySelectorAll('.editor-toolbar .toolbar-btn[data-cmd]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const cmd = btn.dataset.cmd;
+                const val = btn.dataset.val || null;
+                
+                if (cmd === 'h1' || cmd === 'h2') {
+                    document.execCommand('formatBlock', false, `<${cmd}>`);
+                } else if (cmd === 'quote') {
+                    document.execCommand('formatBlock', false, '<blockquote>');
+                } else {
+                    document.execCommand(cmd, false, val);
+                }
+                
+                editorDirty = true;
+                const saveBadge = document.getElementById('save-indicator-badge');
+                if (saveBadge) {
+                    saveBadge.textContent = 'Unsaved Changes';
+                    saveBadge.classList.add('show');
+                }
+                
+                updateEditorStats();
+                editorField.focus();
+            });
+        });
+
+        // 3. Link inserter trigger
+        const insertLinkBtn = document.getElementById('btn-insert-link');
+        if (insertLinkBtn) {
+            insertLinkBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const url = prompt('Enter the link URL (e.g., https://example.com):');
+                if (url) {
+                    let cleanUrl = url.trim();
+                    if (!/^https?:\/\//i.test(cleanUrl)) {
+                        cleanUrl = 'https://' + cleanUrl;
+                    }
+                    document.execCommand('createLink', false, cleanUrl);
+                    editorDirty = true;
+                    const saveBadge = document.getElementById('save-indicator-badge');
+                    if (saveBadge) {
+                        saveBadge.textContent = 'Unsaved Changes';
+                        saveBadge.classList.add('show');
+                    }
+                    editorField.focus();
+                }
+            });
+        }
+
+        // 4. Focus mode toggle button
+        const focusModeBtn = document.getElementById('btn-focus-mode');
+        if (focusModeBtn) {
+            focusModeBtn.addEventListener('click', () => {
+                const editorScreen = document.getElementById('screen-editor');
+                if (editorScreen) {
+                    editorScreen.classList.toggle('focus-mode');
+                    focusModeBtn.classList.toggle('active');
+                }
+            });
+        }
+
+        // 5. Dropdowns Toggle Controller
+        const popups = [
+            { btn: 'btn-font-picker', menu: 'dropdown-font' },
+            { btn: 'btn-size-picker', menu: 'dropdown-size' },
+            { btn: 'btn-color-picker', menu: 'dropdown-color' },
+            { btn: 'btn-highlight-picker', menu: 'dropdown-highlight' }
+        ];
+
+        popups.forEach(({ btn, menu }) => {
+            const btnEl = document.getElementById(btn);
+            const menuEl = document.getElementById(menu);
+            if (btnEl && menuEl) {
+                btnEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Close others
+                    popups.forEach(p => {
+                        if (p.menu !== menu) {
+                            const otherMenu = document.getElementById(p.menu);
+                            if (otherMenu) otherMenu.classList.remove('active');
+                        }
+                    });
+                    menuEl.classList.toggle('active');
+                });
+            }
+        });
+
+        // Global dismiss for drop-downs
+        document.addEventListener('click', (e) => {
+            popups.forEach(({ btn, menu }) => {
+                const btnEl = document.getElementById(btn);
+                const menuEl = document.getElementById(menu);
+                if (btnEl && menuEl) {
+                    if (!btnEl.contains(e.target) && !menuEl.contains(e.target)) {
+                        menuEl.classList.remove('active');
+                    }
+                }
+            });
+        });
+
+        // 6. Font picker option click
+        document.querySelectorAll('.font-option').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const fontClass = btn.dataset.font;
+                
+                // Remove existing font styles
+                editorField.className.split(' ').forEach(cls => {
+                    if (cls.startsWith('font-')) {
+                        editorField.classList.remove(cls);
+                    }
+                });
+                editorField.classList.add(fontClass);
+                
+                // Toggle active highlights
+                document.querySelectorAll('.font-option').forEach(o => o.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Save setting
+                await HelloDB.setSetting('preferred-font', fontClass);
+                
+                const dropdown = document.getElementById('dropdown-font');
+                if (dropdown) dropdown.classList.remove('active');
+            });
+        });
+
+        // 7. Size picker option click
+        document.querySelectorAll('.size-option').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const sizeClass = btn.dataset.size;
+                
+                // Remove existing size styles
+                editorField.className.split(' ').forEach(cls => {
+                    if (cls.startsWith('size-')) {
+                        editorField.classList.remove(cls);
+                    }
+                });
+                editorField.classList.add(sizeClass);
+                
+                // Toggle active highlights
+                document.querySelectorAll('.size-option').forEach(o => o.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Save setting
+                await HelloDB.setSetting('preferred-size', sizeClass);
+                
+                const dropdown = document.getElementById('dropdown-size');
+                if (dropdown) dropdown.classList.remove('active');
+            });
+        });
+
+        // 8. Color picker options selection
+        document.querySelectorAll('#dropdown-color .color-circle').forEach(circle => {
+            circle.addEventListener('click', () => {
+                const colorVal = circle.dataset.color;
+                
+                document.querySelectorAll('#dropdown-color .color-circle').forEach(c => c.classList.remove('active'));
+                circle.classList.add('active');
+                
+                if (colorVal === 'default') {
+                    document.execCommand('foreColor', false, 'inherit');
+                } else {
+                    document.execCommand('foreColor', false, colorVal);
+                }
+                
+                editorDirty = true;
+                const saveBadge = document.getElementById('save-indicator-badge');
+                if (saveBadge) {
+                    saveBadge.textContent = 'Unsaved Changes';
+                    saveBadge.classList.add('show');
+                }
+                
+                const dropdown = document.getElementById('dropdown-color');
+                if (dropdown) dropdown.classList.remove('active');
+            });
+        });
+
+        // 9. Highlight picker options selection
+        document.querySelectorAll('#dropdown-highlight .color-circle').forEach(circle => {
+            circle.addEventListener('click', () => {
+                const highlightVal = circle.dataset.highlight;
+                
+                document.querySelectorAll('#dropdown-highlight .color-circle').forEach(c => c.classList.remove('active'));
+                circle.classList.add('active');
+                
+                if (highlightVal === 'default') {
+                    document.execCommand('hiliteColor', false, 'rgba(0,0,0,0)');
+                } else {
+                    document.execCommand('hiliteColor', false, highlightVal);
+                }
+                
+                editorDirty = true;
+                const saveBadge = document.getElementById('save-indicator-badge');
+                if (saveBadge) {
+                    saveBadge.textContent = 'Unsaved Changes';
+                    saveBadge.classList.add('show');
+                }
+                
+                const dropdown = document.getElementById('dropdown-highlight');
+                if (dropdown) dropdown.classList.remove('active');
             });
         });
     }

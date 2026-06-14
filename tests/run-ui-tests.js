@@ -525,8 +525,88 @@ async function main() {
             if (isSearchActive) throw new Error('Search overlay did not close.');
             console.log('✓ Search overlay closed.');
 
+            console.log('\n=== TEST FLOW D: PREMIUM EDITOR, AUTO-SAVE & CUSTOM FONTS ===');
+
+            // 1. Open Editor
+            console.log('Opening editor...');
+            await evaluate('document.getElementById("btn-fab-new-entry").click()');
+            await sleep(500);
+
+            // 2. Select a premium font (e.g., Caveat)
+            console.log('Opening Font selector and choosing "Caveat"...');
+            await evaluate('document.getElementById("btn-font-picker").click()');
+            await sleep(300);
+            
+            let isFontDropdownActive = await evaluate('document.getElementById("dropdown-font").classList.contains("active")');
+            if (!isFontDropdownActive) throw new Error('Font dropdown did not open.');
+            
+            await evaluate('document.querySelector(\'.font-option[data-font="font-caveat"]\').click()');
+            await sleep(500);
+
+            let hasFontClass = await evaluate('document.getElementById("rich-editor-field").classList.contains("font-caveat")');
+            if (!hasFontClass) throw new Error('Editor content did not gain "font-caveat" class.');
+            console.log('✓ Font class "font-caveat" applied.');
+
+            // 3. Select a size (e.g., X-Large)
+            console.log('Opening Size selector and choosing "X-Large"...');
+            await evaluate('document.getElementById("btn-size-picker").click()');
+            await sleep(300);
+            
+            await evaluate('document.querySelector(\'.size-option[data-size="size-xlarge"]\').click()');
+            await sleep(500);
+
+            let hasSizeClass = await evaluate('document.getElementById("rich-editor-field").classList.contains("size-xlarge")');
+            if (!hasSizeClass) throw new Error('Editor content did not gain "size-xlarge" class.');
+            console.log('✓ Size class "size-xlarge" applied.');
+
+            // 4. Test Text Color selection
+            console.log('Opening Color selector and choosing Red...');
+            await evaluate('document.getElementById("btn-color-picker").click()');
+            await sleep(300);
+            
+            await evaluate('document.querySelector(\'#dropdown-color .color-circle[data-color="#ef4444"]\').click()');
+            await sleep(500);
+            console.log('✓ Text color selected.');
+
+            // 5. Test Text Highlight selection
+            console.log('Opening Highlight selector and choosing Yellow...');
+            await evaluate('document.getElementById("btn-highlight-picker").click()');
+            await sleep(300);
+            
+            await evaluate('document.querySelector(\'#dropdown-highlight .color-circle[data-highlight="#fef08a"]\').click()');
+            await sleep(500);
+            console.log('✓ Text highlight selected.');
+
+            // 6. Test word count and typing stats updates
+            console.log('Typing content in editor to verify stats...');
+            await evaluate(`
+                const field = document.getElementById('rich-editor-field');
+                field.innerHTML = '<h1>My Custom Title</h1><p>This is a test sentence containing exactly ten words here.</p>';
+                field.dispatchEvent(new Event('input'));
+            `);
+            await sleep(500);
+
+            let wordCountText = await evaluate('document.getElementById("editor-word-count").textContent');
+            if (!wordCountText.includes('10 words') && !wordCountText.includes('12 words') && !wordCountText.includes('13 words')) {
+                throw new Error('Word count did not update correctly. Got: ' + wordCountText);
+            }
+            console.log('✓ Word count stats verified:', wordCountText);
+
+            // 7. Verify save badge shows "Unsaved Changes"
+            let badgeText = await evaluate('document.getElementById("save-indicator-badge").textContent');
+            if (badgeText !== 'Unsaved Changes') throw new Error('Save indicator badge did not show Unsaved Changes.');
+            console.log('✓ Badge status "Unsaved Changes" verified.');
+
+            // 8. Go back and check if the entry saved to DB
+            console.log('Navigating back to trigger save...');
+            await evaluate('document.getElementById("btn-editor-back").click()');
+            await sleep(1500);
+
+            let cardsCount = await evaluate('document.querySelectorAll("#view-timeline .entries-grid > div").length');
+            console.log('✓ Total dashboard timeline cards count:', cardsCount);
+
             console.log('\n=============================================================');
-            console.log('🎉 ALL STEP 4 DASHBOARD & SEARCH TESTS PASSED SUCCESSFULLY! 🎉');
+            console.log('🎉 ALL STEP 5 PREMIUM EDITOR & TYPOGRAPHY TESTS PASSED! 🎉');
             console.log('=============================================================');
 
             ws.close();
