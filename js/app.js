@@ -225,6 +225,16 @@ const HelloApp = (function() {
     // Lock screen state variables
     let lockEnteredPin = '';
 
+    // --- Step 4 State Variables ---
+    let cachedEntries = []; // RAM cached array of decrypted diary entries
+    let currentCalendarDate = new Date();
+    let searchMoodFilter = 'all';
+    let searchTagsFilter = new Set();
+    
+    // Editor state
+    let activeEntryId = null; 
+    let activeEntryDate = null;
+
     /**
      * Returns the current volatile session key.
      */
@@ -262,6 +272,7 @@ const HelloApp = (function() {
             // 6. Bind all UI controllers
             initSetupFlow();
             initLockFlow();
+            initDashboardControllers();
 
             // 7. Redirect to Setup screen or Lock screen
             const hasCredentials = await HelloDB.hasCredentials();
@@ -309,6 +320,10 @@ const HelloApp = (function() {
         const devSelect = document.querySelector('#dev-screens-toggle-panel select');
         if (devSelect) {
             devSelect.value = screenId;
+        }
+
+        if (screenId === 'screen-dashboard' && sessionKey) {
+            loadAndRenderDashboard();
         }
     }
 
@@ -833,12 +848,774 @@ const HelloApp = (function() {
         if (bioBtn) bioBtn.disabled = false;
     }
 
+    /**
+     * Loads and decrypts all entries to cache them in RAM and triggers rendering of views.
+     */
+    async function loadAndRenderDashboard() {
+        if (!sessionKey) return;
+        try {
+            cachedEntries = await HelloDB.getAllDecryptedEntries(sessionKey);
+            renderTimeline();
+            renderCalendar(currentCalendarDate);
+            renderOnThisDay();
+            renderSearchFilters();
+        } catch (err) {
+            console.error('Failed to load dashboard data:', err);
+            showToast('Error decrypting diary entries.');
+        }
+    }
+
+    /**
+     * Renders entries on the Timeline view.
+     */
+    function renderTimeline() {
+        const grid = document.querySelector('#view-timeline .entries-grid');
+        if (!grid) return;
+        
+        grid.innerHTML = '';
+        
+        if (cachedEntries.length === 0) {
+            grid.innerHTML = `
+                <div class="glass-card" style="grid-column: 1 / -1; padding: var(--space-xl); text-align: center; width: 100%;">
+                    <span style="font-size: 3rem;">✍️</span>
+                    <h3 class="font-title" style="margin-top: var(--space-md); font-weight: 600;">No memories written yet</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">Click the floating + button to write your first entry.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const MOODS_MAP = {
+            1: { emoji: '😢', name: 'Awful' },
+            2: { emoji: '😕', name: 'Bad' },
+            3: { emoji: '😐', name: 'Okay' },
+            4: { emoji: '🙂', name: 'Good' },
+            5: { emoji: '😊', name: 'Great' }
+        };
+        
+        cachedEntries.forEach(entry => {
+            const formattedDate = new Date(entry.date).toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
+            }).toUpperCase();
+            
+            const card = document.createElement('div');
+            card.className = 'glass-card spring-hover';
+            card.style.padding = 'var(--space-md)';
+            card.style.display = 'flex';
+            card.style.flexDirection = 'column';
+            card.style.gap = 'var(--space-sm)';
+            card.style.cursor = 'pointer';
+            card.style.borderLeft = `4px solid var(--mood-${entry.mood})`;
+            
+            const tagsHtml = (entry.tags || []).map(t => `<span class="tag-pill" style="padding: 2px 8px; font-size: 0.7rem;">#${escapeHtml(t)}</span>`).join('');
+            
+            let snippet = stripHtml(entry.content);
+            if (snippet.length > 150) {
+                snippet = snippet.substring(0, 150) + '...';
+            }
+            
+            card.innerHTML = `
+                <div class="flex justify-between align-center">
+                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">${formattedDate}</span>
+                    <span style="font-size: 1.3rem;" title="${MOODS_MAP[entry.mood]?.name || 'Okay'}">${MOODS_MAP[entry.mood]?.emoji || '😐'}</span>
+                </div>
+                <h3 class="font-title" style="font-size: 1.15rem; font-weight: 600;">${escapeHtml(entry.title || 'Untitled')}</h3>
+                <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                    ${escapeHtml(snippet)}
+                </p>
+                <div class="flex" style="gap: 4px; margin-top: auto; flex-wrap: wrap;">
+                    ${tagsHtml}
+                </div>
+            `;
+            
+            card.addEventListener('click', () => {
+                openViewModal(entry);
+            });
+            
+            grid.appendChild(card);
+        });
+    }
+
+    /**
+     * Renders the Calendar month grid.
+     */
+    function renderCalendar(date) {
+        const grid = document.getElementById('calendar-grid');
+        const monthYearLabel = document.getElementById('calendar-month-year');
+        if (!grid || !monthYearLabel) return;
+        
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        
+        const monthNames = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+        monthYearLabel.textContent = `${monthNames[month]} ${year}`;
+        
+        let html = '';
+        
+        // 1. Weekday Headers
+        const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+        weekdays.forEach(day => {
+            html += `<div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">${day}</div>`;
+        });
+        
+        // 2. Pad previous month days
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const prevMonthDaysCount = new Date(year, month, 0).getDate();
+        for (let i = firstDayIndex - 1; i >= 0; i--) {
+            const dayNum = prevMonthDaysCount - i;
+            html += `<div style="padding: 10px 0; opacity: 0.25; font-size: 0.9rem;">${dayNum}</div>`;
+        }
+        
+        // 3. Render current month days
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const today = new Date();
+        const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+        
+        for (let d = 1; d <= daysInMonth; d++) {
+            const isToday = isCurrentMonth && today.getDate() === d;
+            
+            const dayEntries = cachedEntries.filter(entry => {
+                const entryDate = new Date(entry.date);
+                return entryDate.getFullYear() === year &&
+                       entryDate.getMonth() === month &&
+                       entryDate.getDate() === d;
+            });
+            
+            let dotHtml = '';
+            if (dayEntries.length > 0) {
+                const latestEntry = dayEntries[0]; // newest first
+                dotHtml = `<span class="calendar-dot calendar-dot--mood-${latestEntry.mood}"></span>`;
+            }
+            
+            html += `
+                <div class="calendar-day-cell spring-hover" 
+                     data-date="${year}-${month + 1}-${d}"
+                     style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer; position: relative; font-size: 0.9rem; ${isToday ? 'background: var(--accent-soft); color: var(--accent); font-weight: 700;' : ''}">
+                    ${d}
+                    ${dotHtml}
+                </div>
+            `;
+        }
+        
+        grid.innerHTML = html;
+    }
+
+    /**
+     * Renders On This Day flashback if memories exist.
+     */
+    function renderOnThisDay() {
+        const widget = document.getElementById('flashback-widget');
+        const content = document.getElementById('flashback-content');
+        if (!widget || !content) return;
+        
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentDay = today.getDate();
+        const currentYear = today.getFullYear();
+        
+        const flashbacks = cachedEntries.filter(entry => {
+            const entryDate = new Date(entry.date);
+            return entryDate.getMonth() === currentMonth &&
+                   entryDate.getDate() === currentDay &&
+                   entryDate.getFullYear() < currentYear;
+        });
+        
+        if (flashbacks.length > 0) {
+            const entry = flashbacks[Math.floor(Math.random() * flashbacks.length)];
+            const yearsAgo = currentYear - new Date(entry.date).getFullYear();
+            
+            let snippet = stripHtml(entry.content);
+            if (snippet.length > 150) {
+                snippet = snippet.substring(0, 150) + '...';
+            }
+            
+            content.innerHTML = `${yearsAgo} year(s) ago, you wrote: "${escapeHtml(snippet)}"`;
+            widget.style.display = 'flex';
+        } else {
+            widget.style.display = 'none';
+        }
+    }
+
+    /**
+     * Renders tag filters inside the Search Overlay dynamically based on active tags.
+     */
+    function renderSearchFilters() {
+        const container = document.getElementById('search-tags-container');
+        if (!container) return;
+        
+        const tags = getUniqueTags();
+        if (tags.length === 0) {
+            container.innerHTML = '<span style="font-size: 0.8rem; color: var(--text-muted);">No tags used yet</span>';
+            return;
+        }
+        
+        container.innerHTML = tags.map(tag => {
+            const isActive = searchTagsFilter.has(tag);
+            return `<button class="search-tag-btn ${isActive ? 'active' : ''}" data-tag="${tag}">#${tag}</button>`;
+        }).join('');
+        
+        container.querySelectorAll('.search-tag-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tag = btn.dataset.tag;
+                if (searchTagsFilter.has(tag)) {
+                    searchTagsFilter.delete(tag);
+                    btn.classList.remove('active');
+                } else {
+                    searchTagsFilter.add(tag);
+                    btn.classList.add('active');
+                }
+                filterAndRenderSearch();
+            });
+        });
+    }
+
+    function getUniqueTags() {
+        const tags = new Set();
+        cachedEntries.forEach(entry => {
+            if (entry.tags) {
+                entry.tags.forEach(t => tags.add(t));
+            }
+        });
+        return Array.from(tags).sort();
+    }
+
+    /**
+     * Filters cached entries and renders them inside the search results list.
+     */
+    function filterAndRenderSearch() {
+        const searchBox = document.getElementById('search-box');
+        const listContainer = document.getElementById('search-list-box');
+        if (!searchBox || !listContainer) return;
+        
+        const query = searchBox.value.trim().toLowerCase();
+        
+        const filtered = cachedEntries.filter(entry => {
+            const matchesText = !query || 
+                (entry.title && entry.title.toLowerCase().includes(query)) ||
+                (entry.content && stripHtml(entry.content).toLowerCase().includes(query)) ||
+                (entry.tags && entry.tags.some(t => t.toLowerCase().includes(query)));
+                
+            const matchesMood = searchMoodFilter === 'all' || entry.mood === parseInt(searchMoodFilter);
+            
+            const matchesTags = searchTagsFilter.size === 0 || 
+                (entry.tags && Array.from(searchTagsFilter).every(t => entry.tags.includes(t)));
+                
+            return matchesText && matchesMood && matchesTags;
+        });
+        
+        if (filtered.length === 0) {
+            listContainer.innerHTML = `
+                <div class="glass-card" style="padding: var(--space-xl); text-align: center; width: 100%;">
+                    <span style="font-size: 2.5rem;">🔍</span>
+                    <h4 class="font-title" style="margin-top: var(--space-md); font-weight: 600;">No matching entries found</h4>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 4px;">Try modifying your keyword, mood, or tag filters.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const MOODS_MAP = {
+            1: { emoji: '😢', name: 'Awful' },
+            2: { emoji: '😕', name: 'Bad' },
+            3: { emoji: '😐', name: 'Okay' },
+            4: { emoji: '🙂', name: 'Good' },
+            5: { emoji: '😊', name: 'Great' }
+        };
+        
+        listContainer.innerHTML = '';
+        
+        filtered.forEach(entry => {
+            const formattedDate = new Date(entry.date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            }).toUpperCase();
+            
+            const card = document.createElement('div');
+            card.className = 'glass-card spring-hover';
+            card.style.padding = 'var(--space-md)';
+            card.style.display = 'flex';
+            card.style.flexDirection = 'column';
+            card.style.gap = 'var(--space-sm)';
+            card.style.cursor = 'pointer';
+            card.style.borderLeft = `4px solid var(--mood-${entry.mood})`;
+            card.style.width = '100%';
+            
+            const highlightedTitle = highlightText(entry.title || 'Untitled', query);
+            const highlightedBody = highlightHtml(entry.content || '', query);
+            const tagsHtml = (entry.tags || []).map(t => `<span class="tag-pill" style="padding: 2px 8px; font-size: 0.7rem;">#${highlightText(t, query)}</span>`).join('');
+            
+            card.innerHTML = `
+                <div class="flex justify-between align-center">
+                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">${formattedDate}</span>
+                    <span style="font-size: 1.3rem;" title="${MOODS_MAP[entry.mood]?.name || 'Okay'}">${MOODS_MAP[entry.mood]?.emoji || '😐'}</span>
+                </div>
+                <h3 class="font-title" style="font-size: 1.15rem; font-weight: 600;">${highlightedTitle}</h3>
+                <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6;">
+                    ${highlightedBody}
+                </p>
+                <div class="flex" style="gap: 4px; margin-top: auto; flex-wrap: wrap;">
+                    ${tagsHtml}
+                </div>
+            `;
+            
+            card.addEventListener('click', () => {
+                const searchPanel = document.getElementById('search-panel');
+                if (searchPanel) searchPanel.classList.remove('active');
+                openViewModal(entry);
+            });
+            
+            listContainer.appendChild(card);
+        });
+    }
+
+    function highlightText(text, query) {
+        if (!query) return escapeHtml(text);
+        const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const regex = new RegExp(`(${escapedQuery})`, 'gi');
+        return escapeHtml(text).replace(regex, '<mark>$1</mark>');
+    }
+
+    function highlightHtml(html, query) {
+        const text = stripHtml(html);
+        const idx = query ? text.toLowerCase().indexOf(query) : -1;
+        let snippet = text;
+        if (idx > 50) {
+            snippet = '...' + text.substring(idx - 40, idx + 100);
+        } else if (text.length > 150) {
+            snippet = text.substring(0, 150) + '...';
+        }
+        
+        if (!query) return escapeHtml(snippet);
+        
+        const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const regex = new RegExp(`(${escapedQuery})`, 'gi');
+        return escapeHtml(snippet).replace(regex, '<mark>$1</mark>');
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function stripHtml(html) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        return doc.body.textContent || "";
+    }
+
+    function extractTitleAndBody(html) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        
+        const h1 = tempDiv.querySelector('h1');
+        let title = 'Untitled Entry';
+        if (h1) {
+            title = h1.textContent.trim() || 'Untitled Entry';
+            h1.remove();
+        }
+        
+        const content = tempDiv.innerHTML.trim();
+        return { title, content };
+    }
+
+    function openNewEditor() {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('screen-editor').classList.add('active');
+        
+        const dateStr = new Date(activeEntryDate || Date.now()).toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        });
+        document.querySelector('.editor-date').textContent = dateStr;
+        document.getElementById('rich-editor-field').innerHTML = '<h1></h1><p><br></p>';
+        
+        document.querySelectorAll('.mood-picker .mood-btn').forEach(b => b.classList.remove('selected'));
+        const greatBtn = document.querySelector('.mood-picker .mood-btn[data-mood="5"]');
+        if (greatBtn) greatBtn.classList.add('selected');
+        
+        document.getElementById('editor-tags-list').innerHTML = '';
+        
+        const devSelect = document.querySelector('#dev-screens-toggle-panel select');
+        if (devSelect) devSelect.value = 'screen-editor';
+    }
+
+    function openEntryForEditing(entry) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('screen-editor').classList.add('active');
+        
+        activeEntryId = entry.id;
+        activeEntryDate = entry.date;
+        
+        const dateStr = new Date(entry.date).toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        });
+        document.querySelector('.editor-date').textContent = dateStr;
+        
+        document.getElementById('rich-editor-field').innerHTML = `<h1>${escapeHtml(entry.title)}</h1>${entry.content}`;
+        
+        document.querySelectorAll('.mood-picker .mood-btn').forEach(b => b.classList.remove('selected'));
+        const moodBtn = document.querySelector(`.mood-picker .mood-btn[data-mood="${entry.mood}"]`);
+        if (moodBtn) moodBtn.classList.add('selected');
+        
+        const tagsList = document.getElementById('editor-tags-list');
+        tagsList.innerHTML = '';
+        if (entry.tags) {
+            entry.tags.forEach(t => appendTagPill(t));
+        }
+        
+        const devSelect = document.querySelector('#dev-screens-toggle-panel select');
+        if (devSelect) devSelect.value = 'screen-editor';
+    }
+
+    async function saveActiveEntry() {
+        const html = document.getElementById('rich-editor-field').innerHTML;
+        const { title, content } = extractTitleAndBody(html);
+        
+        const selectedMoodBtn = document.querySelector('.mood-picker .mood-btn.selected');
+        const moodVal = selectedMoodBtn ? parseInt(selectedMoodBtn.dataset.mood) : 5;
+        
+        const tags = [];
+        document.querySelectorAll('#editor-tags-list .tag-pill').forEach(pill => {
+            const text = pill.textContent.replace('×', '').trim().replace('#', '');
+            if (text) tags.push(text);
+        });
+        
+        const entryObj = {
+            title: title,
+            content: content,
+            tags: tags,
+            mood: moodVal,
+            date: activeEntryDate || Date.now()
+        };
+        
+        try {
+            if (activeEntryId) {
+                entryObj.id = activeEntryId;
+                await HelloDB.updateEntry(entryObj, sessionKey);
+                showToast('Entry updated successfully! ✓');
+            } else {
+                await HelloDB.insertEntry(entryObj, sessionKey);
+                showToast('Entry saved successfully! ✓');
+            }
+            await loadAndRenderDashboard();
+        } catch (err) {
+            console.error('Failed to save entry:', err);
+            showToast('Error saving entry to database.');
+        }
+    }
+
+    function appendTagPill(tagName) {
+        if (!tagName) return;
+        const formatted = tagName.trim().toLowerCase().replace('#', '');
+        if (!formatted) return;
+        
+        const tagsList = document.getElementById('editor-tags-list');
+        if (!tagsList) return;
+        
+        let exists = false;
+        tagsList.querySelectorAll('.tag-pill').forEach(pill => {
+            if (pill.textContent.replace('×', '').trim().replace('#', '') === formatted) {
+                exists = true;
+            }
+        });
+        if (exists) return;
+        
+        const pill = document.createElement('span');
+        pill.className = 'tag-pill';
+        pill.innerHTML = `#${formatted} <button class="tag-remove">&times;</button>`;
+        
+        pill.querySelector('.tag-remove').addEventListener('click', () => {
+            pill.remove();
+        });
+        
+        tagsList.appendChild(pill);
+    }
+
+    function openViewModal(entry) {
+        const viewModal = document.getElementById('modal-view-entry');
+        if (!viewModal) return;
+        
+        activeEntryId = entry.id;
+        
+        const formattedDate = new Date(entry.date).toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        }).toUpperCase();
+        
+        const MOODS_MAP = {
+            1: { emoji: '😢', name: 'Awful' },
+            2: { emoji: '😕', name: 'Bad' },
+            3: { emoji: '😐', name: 'Okay' },
+            4: { emoji: '🙂', name: 'Good' },
+            5: { emoji: '😊', name: 'Great' }
+        };
+        
+        document.getElementById('view-modal-title').textContent = entry.title || 'Untitled';
+        document.getElementById('view-modal-subtitle').textContent = `${formattedDate} · ${MOODS_MAP[entry.mood]?.emoji || '😐'} ${MOODS_MAP[entry.mood]?.name || 'Okay'}`;
+        document.getElementById('view-modal-body').innerHTML = entry.content || '';
+        
+        viewModal.classList.add('active');
+    }
+
+    /**
+     * Binds all dashboard, search, and editor event handlers for Step 4.
+     */
+    function initDashboardControllers() {
+        const searchToggle = document.getElementById('btn-search-toggle');
+        const searchClose = document.getElementById('btn-search-close');
+        const searchPanel = document.getElementById('search-panel');
+        
+        if (searchToggle && searchPanel) {
+            searchToggle.addEventListener('click', () => {
+                searchPanel.classList.add('active');
+                const searchBox = document.getElementById('search-box');
+                if (searchBox) {
+                    searchBox.value = '';
+                    searchBox.focus();
+                }
+                searchMoodFilter = 'all';
+                searchTagsFilter.clear();
+                document.querySelectorAll('.search-mood-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.mood === 'all');
+                });
+                renderSearchFilters();
+                filterAndRenderSearch();
+            });
+        }
+        
+        if (searchClose && searchPanel) {
+            searchClose.addEventListener('click', () => {
+                searchPanel.classList.remove('active');
+            });
+        }
+        
+        const searchBox = document.getElementById('search-box');
+        if (searchBox) {
+            searchBox.addEventListener('input', () => {
+                filterAndRenderSearch();
+            });
+        }
+        
+        document.querySelectorAll('.search-mood-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.search-mood-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                searchMoodFilter = btn.dataset.mood;
+                filterAndRenderSearch();
+            });
+        });
+        
+        const prevMonth = document.getElementById('btn-calendar-prev');
+        const nextMonth = document.getElementById('btn-calendar-next');
+        
+        if (prevMonth) {
+            prevMonth.addEventListener('click', () => {
+                currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+                renderCalendar(currentCalendarDate);
+            });
+        }
+        
+        if (nextMonth) {
+            nextMonth.addEventListener('click', () => {
+                currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+                renderCalendar(currentCalendarDate);
+            });
+        }
+        
+        const grid = document.getElementById('calendar-grid');
+        if (grid) {
+            grid.addEventListener('click', (e) => {
+                const cell = e.target.closest('.calendar-day-cell');
+                if (!cell || !cell.dataset.date) return;
+                
+                const [y, m, d] = cell.dataset.date.split('-').map(Number);
+                const targetEntries = cachedEntries.filter(entry => {
+                    const entryDate = new Date(entry.date);
+                    return entryDate.getFullYear() === y && 
+                           (entryDate.getMonth() + 1) === m && 
+                           entryDate.getDate() === d;
+                });
+                
+                if (targetEntries.length > 0) {
+                    openViewModal(targetEntries[0]);
+                }
+            });
+            
+            grid.addEventListener('dblclick', (e) => {
+                const cell = e.target.closest('.calendar-day-cell');
+                if (!cell || !cell.dataset.date) return;
+                
+                const targetDateStr = cell.dataset.date;
+                activeEntryId = null;
+                activeEntryDate = new Date(targetDateStr).getTime();
+                
+                openNewEditor();
+            });
+        }
+        
+        const flashbackClose = document.getElementById('btn-flashback-close');
+        if (flashbackClose) {
+            flashbackClose.addEventListener('click', () => {
+                document.getElementById('flashback-widget').style.display = 'none';
+            });
+        }
+        
+        const fabBtn = document.getElementById('btn-fab-new-entry');
+        const mobFabBtn = document.getElementById('btn-mobile-fab');
+        
+        const onFabClick = () => {
+            activeEntryId = null;
+            activeEntryDate = Date.now();
+            openNewEditor();
+        };
+        
+        if (fabBtn) fabBtn.addEventListener('click', onFabClick);
+        if (mobFabBtn) mobFabBtn.addEventListener('click', onFabClick);
+        
+        const viewModalClose = document.getElementById('btn-view-modal-close');
+        const viewModalDone = document.getElementById('btn-view-modal-done');
+        const viewModalEdit = document.getElementById('btn-view-modal-edit');
+        const viewModal = document.getElementById('modal-view-entry');
+        
+        if (viewModalClose && viewModal) {
+            viewModalClose.addEventListener('click', () => {
+                viewModal.classList.remove('active');
+            });
+        }
+        
+        if (viewModalDone && viewModal) {
+            viewModalDone.addEventListener('click', () => {
+                viewModal.classList.remove('active');
+            });
+        }
+        
+        if (viewModalEdit && viewModal) {
+            viewModalEdit.addEventListener('click', () => {
+                viewModal.classList.remove('active');
+                if (activeEntryId) {
+                    const entry = cachedEntries.find(e => e.id === activeEntryId);
+                    if (entry) {
+                        openEntryForEditing(entry);
+                    }
+                }
+            });
+        }
+        
+        const editorBack = document.getElementById('btn-editor-back');
+        if (editorBack) {
+            editorBack.addEventListener('click', async () => {
+                if (sessionKey) {
+                    await saveActiveEntry();
+                }
+                showScreen('screen-dashboard');
+                if (window.switchDashboardView) {
+                    window.switchDashboardView('timeline');
+                }
+            });
+        }
+        
+        const deleteBtn = document.getElementById('btn-editor-delete');
+        const confirmCancel = document.getElementById('btn-confirm-cancel');
+        const confirmOk = document.getElementById('btn-confirm-ok');
+        const confirmModal = document.getElementById('modal-confirm');
+        
+        if (deleteBtn && confirmModal) {
+            deleteBtn.addEventListener('click', () => {
+                document.getElementById('confirm-modal-title').textContent = 'Delete entry?';
+                document.getElementById('confirm-modal-desc').textContent = 'This action is permanent and cannot be undone. Are you sure you want to delete this memory?';
+                confirmModal.classList.add('active');
+            });
+        }
+        
+        if (confirmCancel && confirmModal) {
+            confirmCancel.addEventListener('click', () => {
+                confirmModal.classList.remove('active');
+            });
+        }
+        
+        if (confirmOk && confirmModal) {
+            confirmOk.addEventListener('click', async () => {
+                confirmModal.classList.remove('active');
+                if (activeEntryId) {
+                    await HelloDB.deleteEntry(activeEntryId);
+                    activeEntryId = null;
+                    showToast('Entry deleted successfully.');
+                    await loadAndRenderDashboard();
+                }
+                showScreen('screen-dashboard');
+                if (window.switchDashboardView) {
+                    window.switchDashboardView('timeline');
+                }
+            });
+        }
+        
+        const addTagBtn = document.getElementById('btn-editor-add-tag');
+        const tagModal = document.getElementById('modal-add-tag');
+        const tagCancel = document.getElementById('btn-tag-modal-cancel');
+        const tagAddConfirm = document.getElementById('btn-tag-modal-add');
+        const tagInput = document.getElementById('tag-modal-input');
+        
+        if (addTagBtn && tagModal) {
+            addTagBtn.addEventListener('click', () => {
+                tagModal.classList.add('active');
+                if (tagInput) {
+                    tagInput.value = '';
+                    tagInput.focus();
+                }
+            });
+        }
+        
+        if (tagCancel && tagModal) {
+            tagCancel.addEventListener('click', () => {
+                tagModal.classList.remove('active');
+            });
+        }
+        
+        if (tagAddConfirm && tagModal && tagInput) {
+            tagAddConfirm.addEventListener('click', () => {
+                appendTagPill(tagInput.value);
+                tagModal.classList.remove('active');
+            });
+            tagInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    appendTagPill(tagInput.value);
+                    tagModal.classList.remove('active');
+                }
+            });
+        }
+        
+        document.querySelectorAll('.tag-suggestion').forEach(btn => {
+            btn.addEventListener('click', () => {
+                appendTagPill(btn.dataset.tag);
+                if (tagModal) tagModal.classList.remove('active');
+            });
+        });
+        
+        document.querySelectorAll('.mood-picker .mood-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.mood-picker .mood-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+            });
+        });
+    }
+
     // Public controller exports
     return {
         init,
         getSessionKey,
         showScreen,
-        checkLockoutState
+        checkLockoutState,
+        loadAndRenderDashboard
     };
 
 })();

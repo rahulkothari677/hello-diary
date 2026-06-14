@@ -351,173 +351,175 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Modal view entry details mock bindings (for all entry cards)
-    const viewModal = document.getElementById('modal-view-entry');
-    const viewClose = document.getElementById('btn-view-modal-close');
-    const viewDone = document.getElementById('btn-view-modal-done');
-    const viewEdit = document.getElementById('btn-view-modal-edit');
-    
-    document.querySelectorAll('.entries-grid > div').forEach(card => {
-        card.addEventListener('click', () => {
-            if (viewModal) {
-                // Populate modal content from card if needed
-                const title = card.querySelector('h3').textContent;
-                const date = card.querySelector('span').textContent;
-                const mood = card.querySelector('span:last-child').textContent;
-                const body = card.querySelector('p').textContent;
-                
-                document.getElementById('view-modal-title').textContent = title;
-                document.getElementById('view-modal-subtitle').textContent = `${date} · ${mood}`;
-                document.getElementById('view-modal-body').textContent = body;
-                
-                viewModal.classList.add('active');
-            }
-        });
-    });
-    
-    if (viewClose && viewDone && viewModal) {
-        [viewClose, viewDone].forEach(btn => {
-            btn.addEventListener('click', () => {
-                viewModal.classList.remove('active');
+    if (!window.HelloApp) {
+        // Modal view entry details mock bindings (for all entry cards)
+        const viewModal = document.getElementById('modal-view-entry');
+        const viewClose = document.getElementById('btn-view-modal-close');
+        const viewDone = document.getElementById('btn-view-modal-done');
+        const viewEdit = document.getElementById('btn-view-modal-edit');
+        
+        document.querySelectorAll('.entries-grid > div').forEach(card => {
+            card.addEventListener('click', () => {
+                if (viewModal) {
+                    // Populate modal content from card if needed
+                    const title = card.querySelector('h3').textContent;
+                    const date = card.querySelector('span').textContent;
+                    const mood = card.querySelector('span:last-child').textContent;
+                    const body = card.querySelector('p').textContent;
+                    
+                    document.getElementById('view-modal-title').textContent = title;
+                    document.getElementById('view-modal-subtitle').textContent = `${date} · ${mood}`;
+                    document.getElementById('view-modal-body').textContent = body;
+                    
+                    viewModal.classList.add('active');
+                }
             });
         });
-    }
+        
+        if (viewClose && viewDone && viewModal) {
+            [viewClose, viewDone].forEach(btn => {
+                btn.addEventListener('click', () => {
+                    viewModal.classList.remove('active');
+                });
+            });
+        }
 
-    // Modal Edit Entry button triggers screen transition to Editor
-    if (viewEdit && viewModal) {
-        viewEdit.addEventListener('click', () => {
-            viewModal.classList.remove('active');
+        // Modal Edit Entry button triggers screen transition to Editor
+        if (viewEdit && viewModal) {
+            viewEdit.addEventListener('click', () => {
+                viewModal.classList.remove('active');
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById('screen-editor').classList.add('active');
+                
+                // Populate editor fields as mock
+                document.getElementById('rich-editor-field').innerHTML = `<h1>${document.getElementById('view-modal-title').textContent}</h1><p>${document.getElementById('view-modal-body').textContent}</p>`;
+                
+                const devSelect = document.querySelector('#dev-screens-toggle-panel select');
+                if (devSelect) devSelect.value = 'screen-editor';
+            });
+        }
+
+        // Editor Back button triggers transition to Dashboard Timeline
+        const editorBack = document.getElementById('btn-editor-back');
+        if (editorBack) {
+            editorBack.addEventListener('click', () => {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById('screen-dashboard').classList.add('active');
+                switchDashboardView('timeline');
+                
+                const devSelect = document.querySelector('#dev-screens-toggle-panel select');
+                if (devSelect) devSelect.value = 'screen-dashboard';
+                showToast('Entry auto-saved successfully! ✓');
+            });
+        }
+
+        // New Entry FAB buttons trigger transition to Editor
+        const fabBtn = document.getElementById('btn-fab-new-entry');
+        const mobFabBtn = document.getElementById('btn-mobile-fab');
+        const openEditor = () => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('screen-editor').classList.add('active');
             
-            // Populate editor fields as mock
-            document.getElementById('rich-editor-field').innerHTML = `<h1>${document.getElementById('view-modal-title').textContent}</h1><p>${document.getElementById('view-modal-body').textContent}</p>`;
+            // Reset editor fields
+            document.getElementById('rich-editor-field').innerHTML = '';
             
             const devSelect = document.querySelector('#dev-screens-toggle-panel select');
             if (devSelect) devSelect.value = 'screen-editor';
-        });
-    }
+        };
+        if (fabBtn) fabBtn.addEventListener('click', openEditor);
+        if (mobFabBtn) mobFabBtn.addEventListener('click', openEditor);
 
-    // Editor Back button triggers transition to Dashboard Timeline
-    const editorBack = document.getElementById('btn-editor-back');
-    if (editorBack) {
-        editorBack.addEventListener('click', () => {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById('screen-dashboard').classList.add('active');
-            switchDashboardView('timeline');
+        // Add Tag Modal behavior
+        const addTagBtn = document.getElementById('btn-editor-add-tag');
+        const tagModal = document.getElementById('modal-add-tag');
+        const tagCancel = document.getElementById('btn-tag-modal-cancel');
+        const tagAddConfirm = document.getElementById('btn-tag-modal-add');
+        const tagInput = document.getElementById('tag-modal-input');
+        const tagsList = document.getElementById('editor-tags-list');
+        
+        if (addTagBtn && tagModal) {
+            addTagBtn.addEventListener('click', () => {
+                tagModal.classList.add('active');
+                if (tagInput) {
+                    tagInput.value = '';
+                    tagInput.focus();
+                }
+            });
+        }
+        if (tagCancel && tagModal) {
+            tagCancel.addEventListener('click', () => {
+                tagModal.classList.remove('active');
+            });
+        }
+        
+        const appendTagPill = (tagName) => {
+            if (!tagName) return;
+            const formatted = tagName.trim().toLowerCase().replace('#', '');
+            if (!formatted) return;
             
-            const devSelect = document.querySelector('#dev-screens-toggle-panel select');
-            if (devSelect) devSelect.value = 'screen-dashboard';
-            showToast('Entry auto-saved successfully! ✓');
-        });
-    }
+            const pill = document.createElement('span');
+            pill.className = 'tag-pill';
+            pill.innerHTML = `#${formatted} <button class="tag-remove">&times;</button>`;
+            
+            // delete tag behavior
+            pill.querySelector('.tag-remove').addEventListener('click', () => {
+                pill.remove();
+            });
+            
+            tagsList.appendChild(pill);
+        };
 
-    // New Entry FAB buttons trigger transition to Editor
-    const fabBtn = document.getElementById('btn-fab-new-entry');
-    const mobFabBtn = document.getElementById('btn-mobile-fab');
-    const openEditor = () => {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById('screen-editor').classList.add('active');
-        
-        // Reset editor fields
-        document.getElementById('rich-editor-field').innerHTML = '';
-        
-        const devSelect = document.querySelector('#dev-screens-toggle-panel select');
-        if (devSelect) devSelect.value = 'screen-editor';
-    };
-    if (fabBtn) fabBtn.addEventListener('click', openEditor);
-    if (mobFabBtn) mobFabBtn.addEventListener('click', openEditor);
-
-    // Add Tag Modal behavior
-    const addTagBtn = document.getElementById('btn-editor-add-tag');
-    const tagModal = document.getElementById('modal-add-tag');
-    const tagCancel = document.getElementById('btn-tag-modal-cancel');
-    const tagAddConfirm = document.getElementById('btn-tag-modal-add');
-    const tagInput = document.getElementById('tag-modal-input');
-    const tagsList = document.getElementById('editor-tags-list');
-    
-    if (addTagBtn && tagModal) {
-        addTagBtn.addEventListener('click', () => {
-            tagModal.classList.add('active');
-            if (tagInput) {
-                tagInput.value = '';
-                tagInput.focus();
-            }
-        });
-    }
-    if (tagCancel && tagModal) {
-        tagCancel.addEventListener('click', () => {
-            tagModal.classList.remove('active');
-        });
-    }
-    
-    const appendTagPill = (tagName) => {
-        if (!tagName) return;
-        const formatted = tagName.trim().toLowerCase().replace('#', '');
-        if (!formatted) return;
-        
-        const pill = document.createElement('span');
-        pill.className = 'tag-pill';
-        pill.innerHTML = `#${formatted} <button class="tag-remove">&times;</button>`;
-        
-        // delete tag behavior
-        pill.querySelector('.tag-remove').addEventListener('click', () => {
-            pill.remove();
-        });
-        
-        tagsList.appendChild(pill);
-    };
-
-    if (tagAddConfirm && tagModal && tagInput) {
-        tagAddConfirm.addEventListener('click', () => {
-            appendTagPill(tagInput.value);
-            tagModal.classList.remove('active');
-        });
-        tagInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
+        if (tagAddConfirm && tagModal && tagInput) {
+            tagAddConfirm.addEventListener('click', () => {
                 appendTagPill(tagInput.value);
                 tagModal.classList.remove('active');
-            }
-        });
-    }
+            });
+            tagInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    appendTagPill(tagInput.value);
+                    tagModal.classList.remove('active');
+                }
+            });
+        }
 
-    // Preset tag suggestions
-    document.querySelectorAll('.tag-suggestion').forEach(btn => {
-        btn.addEventListener('click', () => {
-            appendTagPill(btn.dataset.tag);
-            if (tagModal) tagModal.classList.remove('active');
+        // Preset tag suggestions
+        document.querySelectorAll('.tag-suggestion').forEach(btn => {
+            btn.addEventListener('click', () => {
+                appendTagPill(btn.dataset.tag);
+                if (tagModal) tagModal.classList.remove('active');
+            });
         });
-    });
 
-    // Delete Entry confirm dialog mock behavior
-    const deleteBtn = document.getElementById('btn-editor-delete');
-    const confirmModal = document.getElementById('modal-confirm');
-    const confirmCancel = document.getElementById('btn-confirm-cancel');
-    const confirmOk = document.getElementById('btn-confirm-ok');
-    
-    if (deleteBtn && confirmModal) {
-        deleteBtn.addEventListener('click', () => {
-            document.getElementById('confirm-modal-title').textContent = 'Delete entry?';
-            document.getElementById('confirm-modal-desc').textContent = 'This action is permanent and cannot be undone. Are you sure you want to delete this memory?';
-            confirmModal.classList.add('active');
-        });
-    }
-    if (confirmCancel && confirmModal) {
-        confirmCancel.addEventListener('click', () => {
-            confirmModal.classList.remove('active');
-        });
-    }
-    if (confirmOk && confirmModal) {
-        confirmOk.addEventListener('click', () => {
-            confirmModal.classList.remove('active');
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById('screen-dashboard').classList.add('active');
-            switchDashboardView('timeline');
-            
-            const devSelect = document.querySelector('#dev-screens-toggle-panel select');
-            if (devSelect) devSelect.value = 'screen-dashboard';
-            showToast('Entry deleted successfully.');
-        });
+        // Delete Entry confirm dialog mock behavior
+        const deleteBtn = document.getElementById('btn-editor-delete');
+        const confirmModal = document.getElementById('modal-confirm');
+        const confirmCancel = document.getElementById('btn-confirm-cancel');
+        const confirmOk = document.getElementById('btn-confirm-ok');
+        
+        if (deleteBtn && confirmModal) {
+            deleteBtn.addEventListener('click', () => {
+                document.getElementById('confirm-modal-title').textContent = 'Delete entry?';
+                document.getElementById('confirm-modal-desc').textContent = 'This action is permanent and cannot be undone. Are you sure you want to delete this memory?';
+                confirmModal.classList.add('active');
+            });
+        }
+        if (confirmCancel && confirmModal) {
+            confirmCancel.addEventListener('click', () => {
+                confirmModal.classList.remove('active');
+            });
+        }
+        if (confirmOk && confirmModal) {
+            confirmOk.addEventListener('click', () => {
+                confirmModal.classList.remove('active');
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById('screen-dashboard').classList.add('active');
+                switchDashboardView('timeline');
+                
+                const devSelect = document.querySelector('#dev-screens-toggle-panel select');
+                if (devSelect) devSelect.value = 'screen-dashboard';
+                showToast('Entry deleted successfully.');
+            });
+        }
     }
 
     // Setup screen navigation buttons flow (only if production HelloApp is not active)

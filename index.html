@@ -301,6 +301,23 @@
                         <input type="text" placeholder="Search your diary entries..." class="input" id="search-box">
                         <button class="search-close" id="btn-search-close">&times;</button>
                     </div>
+                    <div class="search-filters">
+                        <div class="search-filter-group">
+                            <span class="search-filter-title">Moods:</span>
+                            <button class="search-mood-btn active" data-mood="all">All</button>
+                            <button class="search-mood-btn" data-mood="1">😢 Awful</button>
+                            <button class="search-mood-btn" data-mood="2">😕 Bad</button>
+                            <button class="search-mood-btn" data-mood="3">😐 Okay</button>
+                            <button class="search-mood-btn" data-mood="4">🙂 Good</button>
+                            <button class="search-mood-btn" data-mood="5">😊 Great</button>
+                        </div>
+                        <div class="search-filter-group" style="margin-top: var(--space-xs);">
+                            <span class="search-filter-title">Tags:</span>
+                            <div id="search-tags-container" class="search-filter-tags">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
                     <div class="search-results" id="search-list-box">
                         <!-- Search results load here -->
                     </div>
@@ -310,13 +327,13 @@
                 <div id="view-timeline" class="view-container">
                     
                     <!-- Flashback Widget -->
-                    <div class="on-this-day glass-card" style="padding: var(--space-md); margin-bottom: var(--space-md); display: flex; align-items: center; gap: var(--space-md);">
+                    <div id="flashback-widget" class="on-this-day glass-card" style="padding: var(--space-md); margin-bottom: var(--space-md); display: none; align-items: center; gap: var(--space-md);">
                         <span style="font-size: 1.5rem;">💫</span>
                         <div style="flex: 1;">
                             <h4 class="font-title" style="font-size: 0.95rem; font-weight: 600;">On This Day</h4>
-                            <p style="font-size: 0.82rem; color: var(--text-secondary);">One year ago, you wrote: "Started brainstorming my next big project. Feeling super motivated!"</p>
+                            <p id="flashback-content" style="font-size: 0.82rem; color: var(--text-secondary);"></p>
                         </div>
-                        <button class="topbar-btn" style="padding: 4px;">&times;</button>
+                        <button class="topbar-btn" id="btn-flashback-close" style="padding: 4px;">&times;</button>
                     </div>
 
                     <!-- Entries timeline -->
@@ -360,50 +377,14 @@
                 <div id="view-calendar" class="view-container" style="display: none;">
                     <div class="glass-card" style="padding: var(--space-md); margin-bottom: var(--space-md);">
                         <div class="flex justify-between align-center" style="margin-bottom: var(--space-md);">
-                            <button class="btn btn--outline btn--sm">&lt;</button>
-                            <h3 class="font-title">June 2026</h3>
-                            <button class="btn btn--outline btn--sm">&gt;</button>
+                            <button class="btn btn--outline btn--sm" id="btn-calendar-prev">&lt;</button>
+                            <h3 class="font-title" id="calendar-month-year">June 2026</h3>
+                            <button class="btn btn--outline btn--sm" id="btn-calendar-next">&gt;</button>
                         </div>
                         
-                        <!-- Simple Mock calendar grid -->
-                        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--space-xs); text-align: center;">
-                            <!-- Days of week -->
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">S</div>
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">M</div>
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">T</div>
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">W</div>
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">T</div>
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">F</div>
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">S</div>
-                            
-                            <!-- Calendar empty padding -->
-                            <div style="padding: 10px 0; opacity: 0.25;">31</div>
-                            
-                            <!-- Days -->
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">1</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">2</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">3</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">4</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">5</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">6</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">7</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">8</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">9</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">10</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">11</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer; position: relative;" class="spring-hover">
-                                12
-                                <span style="position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--mood-4);"></span>
-                            </div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">13</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer; background: var(--accent-soft); color: var(--accent); font-weight: 700; position: relative;" class="spring-hover">
-                                14
-                                <span style="position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--mood-5);"></span>
-                            </div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); opacity: 0.4;">15</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); opacity: 0.4;">16</div>
-                            <div style="padding: 10px 0; border-radius: var(--radius-sm); opacity: 0.4;">17</div>
-                            <!-- ... -->
+                        <!-- Calendar grid -->
+                        <div id="calendar-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--space-xs); text-align: center;">
+                            <!-- Populated dynamically -->
                         </div>
                     </div>
                 </div>

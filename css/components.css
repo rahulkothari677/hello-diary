@@ -897,3 +897,203 @@
     transform: translate(-50%, 0);
     opacity: 1;
 }
+
+/* ==========================================================================
+   Step 4 Additions: Search Overlay, Filters, and Mood Indicators
+   ========================================================================== */
+
+/* --- Search Overlay --- */
+.search-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--theme-overlay);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-normal) ease;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-xl) var(--space-md);
+}
+
+@media (min-width: 1024px) {
+    .search-overlay {
+        left: var(--sidebar-width);
+        width: calc(100% - var(--sidebar-width));
+        padding: var(--space-xl) var(--space-xl);
+    }
+}
+
+.search-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: 8px 16px;
+    max-width: 800px;
+    width: 100%;
+    margin: 0 auto var(--space-md) auto;
+    box-shadow: var(--shadow-md);
+}
+
+.search-bar svg {
+    color: var(--text-secondary);
+}
+
+.search-bar .input {
+    border: none;
+    background: transparent;
+    padding: 8px 0;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.search-bar .input::placeholder {
+    color: var(--text-muted);
+}
+
+.search-close {
+    background: transparent;
+    border: none;
+    font-size: 1.8rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: color var(--transition-fast);
+}
+
+.search-close:hover {
+    color: var(--text-primary);
+}
+
+/* --- Search Filters --- */
+.search-filters {
+    margin: 0 auto var(--space-lg) auto;
+    max-width: 800px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    padding: 0 var(--space-sm);
+}
+
+.search-filter-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.search-filter-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    min-width: 70px;
+}
+
+.search-mood-btn {
+    appearance: none;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-full);
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast) var(--spring-transition);
+}
+
+.search-mood-btn:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+
+.search-mood-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #FFFFFF;
+}
+
+.search-filter-tags {
+    display: flex;
+    gap: var(--space-xs);
+    flex-wrap: wrap;
+}
+
+.search-tag-btn {
+    appearance: none;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast) var(--spring-transition);
+}
+
+.search-tag-btn:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.search-tag-btn.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.search-results {
+    flex: 1;
+    overflow-y: auto;
+    max-width: 800px;
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    padding-bottom: var(--space-xl);
+}
+
+/* --- Search Result Highlight --- */
+.search-results mark {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+    border-radius: 2px;
+    padding: 0 2px;
+}
+
+/* --- Calendar Dot Indicators --- */
+.calendar-dot {
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+}
+
+.calendar-dot--mood-1 { background: var(--mood-1); }
+.calendar-dot--mood-2 { background: var(--mood-2); }
+.calendar-dot--mood-3 { background: var(--mood-3); }
+.calendar-dot--mood-4 { background: var(--mood-4); }
+.calendar-dot--mood-5 { background: var(--mood-5); }

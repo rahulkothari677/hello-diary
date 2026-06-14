@@ -377,8 +377,156 @@ async function main() {
             if (!isDashboardActive) throw new Error('Pattern unlock failed to open Dashboard.');
             console.log('✓ Pattern unlock successful!');
 
+            console.log('\n=== TEST FLOW C: TIMELINE, CALENDAR, & SEARCH ===');
+
+            // 1. Verify timeline is empty initially
+            console.log('Checking timeline empty state...');
+            let timelineHtml = await evaluate('document.querySelector("#view-timeline .entries-grid").innerHTML');
+            if (!timelineHtml.includes('No memories written yet')) {
+                throw new Error('Timeline did not show empty state initially.');
+            }
+            console.log('✓ Timeline empty state verified.');
+
+            // 2. Open Editor to create a new entry
+            console.log('Opening editor for new entry...');
+            await evaluate('document.getElementById("btn-fab-new-entry").click()');
+            await sleep(500);
+
+            let isEditorActive = await evaluate('document.getElementById("screen-editor").classList.contains("active")');
+            if (!isEditorActive) throw new Error('Editor screen did not activate.');
+            console.log('✓ Editor active.');
+
+            // 3. Write entry contents
+            console.log('Writing title and body...');
+            await evaluate(`
+                document.getElementById('rich-editor-field').innerHTML = '<h1>Today is a Sunshine Day</h1><p>I am feeling incredibly happy and productive today. Lots of sunshine!</p>';
+            `);
+            
+            // Choose mood 5 (Great)
+            console.log('Selecting mood Great (5)...');
+            await evaluate(`
+                document.querySelector('.mood-picker .mood-btn[data-mood="5"]').click();
+            `);
+
+            // Add tag suggestion
+            console.log('Adding tag suggest "happy"...');
+            await evaluate(`
+                document.getElementById('btn-editor-add-tag').click();
+            `);
+            await sleep(300);
+            await evaluate(`
+                document.querySelector('.tag-suggestion[data-tag="happy"]').click();
+            `);
+            await sleep(300);
+
+            // 4. Save and return to dashboard
+            console.log('Saving entry and navigating back...');
+            await evaluate('document.getElementById("btn-editor-back").click()');
+            // Give Web Crypto time to encrypt and save
+            await sleep(1500);
+
+            // Check if timeline contains 1 entry card now
+            isDashboardActive = await evaluate('document.getElementById("screen-dashboard").classList.contains("active")');
+            if (!isDashboardActive) throw new Error('Did not return to dashboard after save.');
+            
+            let timelineCardsCount = await evaluate('document.querySelectorAll("#view-timeline .entries-grid > div").length');
+            if (timelineCardsCount !== 1) throw new Error('Expected 1 entry card in timeline, got: ' + timelineCardsCount);
+            
+            let cardTitle = await evaluate('document.querySelector("#view-timeline .entries-grid h3").textContent');
+            if (cardTitle !== 'Today is a Sunshine Day') throw new Error('Timeline card title mismatch: ' + cardTitle);
+            console.log('✓ Timeline card created and rendered successfully.');
+
+            // 5. Navigate to Calendar and verify mood indicator dot
+            console.log('Navigating to Calendar view...');
+            await evaluate('switchDashboardView("calendar")');
+            await sleep(500);
+
+            let todayCellHasDot = await evaluate(`
+                const todayCell = document.querySelector('#calendar-grid .calendar-day-cell[style*="font-weight: 700"]');
+                todayCell && !!todayCell.querySelector('.calendar-dot--mood-5');
+            `);
+            if (!todayCellHasDot) throw new Error('Calendar cell for today is missing the mood dot indicator.');
+            console.log('✓ Calendar day cell shows correct mood indicator dot.');
+
+            // 6. Inject a historical flashback entry from exactly 1 year ago
+            console.log('Injecting 1-year-ago flashback entry into DB...');
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            
+            await evaluate(`
+                HelloDB.insertEntry({
+                    title: 'Last Year Flashback',
+                    content: '<p>A beautiful sunny day of coding. Sunshine and smiles.</p>',
+                    tags: ['memory', 'sunshine'],
+                    mood: 4,
+                    date: ${oneYearAgo.getTime()}
+                }, HelloApp.getSessionKey())
+            `);
+            
+            // Reload entries and refresh views
+            await evaluate('HelloApp.loadAndRenderDashboard()');
+            await sleep(1000);
+
+            // Verify flashback widget is shown
+            let flashbackVisible = await evaluate('document.getElementById("flashback-widget").style.display !== "none"');
+            if (!flashbackVisible) throw new Error('On This Day flashback widget is not visible.');
+            
+            let flashbackText = await evaluate('document.getElementById("flashback-content").textContent');
+            if (!flashbackText.includes('1 year(s) ago') || !flashbackText.includes('sunny day of coding')) {
+                throw new Error('Flashback widget content mismatch: ' + flashbackText);
+            }
+            console.log('✓ On This Day flashback widget verified: ' + flashbackText);
+
+            // 7. Test Search Overlay
+            console.log('Opening Search overlay...');
+            await evaluate('document.getElementById("btn-search-toggle").click()');
+            await sleep(500);
+
+            let isSearchActive = await evaluate('document.getElementById("search-panel").classList.contains("active")');
+            if (!isSearchActive) throw new Error('Search overlay did not activate.');
+
+            console.log('Searching for "sunshine"...');
+            await evaluate('document.getElementById("search-box").value = "sunshine"');
+            await evaluate('document.getElementById("search-box").dispatchEvent(new Event("input"))');
+            await sleep(500);
+
+            // Both entries contain "sunshine" (one in title, one in content)
+            let searchResultsCount = await evaluate('document.querySelectorAll("#search-list-box > div").length');
+            if (searchResultsCount !== 2) throw new Error('Expected 2 search results, got: ' + searchResultsCount);
+            console.log('✓ Search results count matches 2.');
+
+            // Verify highlight tag <mark> is rendered
+            let highlightCount = await evaluate('document.querySelectorAll("#search-list-box mark").length');
+            if (highlightCount === 0) throw new Error('Expected highlighted search matches, got none.');
+            console.log('✓ Query highlighting matches verified.');
+
+            // Click Mood 5 filter inside search (only first entry is mood 5, flashback is mood 4)
+            console.log('Filtering search results by Mood 5 (Great)...');
+            await evaluate('document.querySelector(\'.search-mood-btn[data-mood="5"]\').click()');
+            await sleep(500);
+
+            searchResultsCount = await evaluate('document.querySelectorAll("#search-list-box > div").length');
+            if (searchResultsCount !== 1) throw new Error('Expected 1 search result after mood filtering, got: ' + searchResultsCount);
+            console.log('✓ Search mood filtering verified.');
+
+            // Click Tag happy filter (timeline entry has tag happy, flashback has tag memory/sunshine)
+            console.log('Filtering search results by tag "happy"...');
+            await evaluate('document.querySelector(\'.search-tag-btn[data-tag="happy"]\').click()');
+            await sleep(500);
+
+            searchResultsCount = await evaluate('document.querySelectorAll("#search-list-box > div").length');
+            if (searchResultsCount !== 1) throw new Error('Expected 1 search result after tag filtering, got: ' + searchResultsCount);
+            console.log('✓ Search tag filtering verified.');
+
+            // Close search overlay
+            await evaluate('document.getElementById("btn-search-close").click()');
+            await sleep(300);
+            isSearchActive = await evaluate('document.getElementById("search-panel").classList.contains("active")');
+            if (isSearchActive) throw new Error('Search overlay did not close.');
+            console.log('✓ Search overlay closed.');
+
             console.log('\n=============================================================');
-            console.log('🎉 ALL SECURITY PORTAL UI TESTS PASSED SUCCESSFULLY! 🎉');
+            console.log('🎉 ALL STEP 4 DASHBOARD & SEARCH TESTS PASSED SUCCESSFULLY! 🎉');
             console.log('=============================================================');
 
             ws.close();
