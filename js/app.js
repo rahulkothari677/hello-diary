@@ -1862,7 +1862,7 @@ const HelloApp = (function() {
             });
         }
 
-        // 5. Dropdowns Toggle Controller
+        // 5. Dropdowns Toggle Controller (with dynamic positioning to escape horizontal scrollbar clipping)
         const popups = [
             { btn: 'btn-font-picker', menu: 'dropdown-font' },
             { btn: 'btn-size-picker', menu: 'dropdown-size' },
@@ -1876,6 +1876,7 @@ const HelloApp = (function() {
             if (btnEl && menuEl) {
                 btnEl.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    
                     // Close others
                     popups.forEach(p => {
                         if (p.menu !== menu) {
@@ -1883,7 +1884,27 @@ const HelloApp = (function() {
                             if (otherMenu) otherMenu.classList.remove('active');
                         }
                     });
-                    menuEl.classList.toggle('active');
+                    
+                    const willShow = !menuEl.classList.contains('active');
+                    if (willShow) {
+                        // Position dynamically relative to trigger button
+                        const rect = btnEl.getBoundingClientRect();
+                        
+                        // We position it above the toolbar button (which is at rect.top)
+                        menuEl.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+                        
+                        // Keep dropdown on screen (menu width is 200px to 230px)
+                        let left = rect.left;
+                        const menuWidth = menuEl.classList.contains('grid-layout') ? 230 : 200;
+                        if (left + menuWidth > window.innerWidth) {
+                            left = window.innerWidth - menuWidth - 16;
+                        }
+                        menuEl.style.left = Math.max(16, left) + 'px';
+                        
+                        menuEl.classList.add('active');
+                    } else {
+                        menuEl.classList.remove('active');
+                    }
                 });
             }
         });

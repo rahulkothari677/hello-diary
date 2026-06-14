@@ -369,14 +369,19 @@
 
 /* --- Editor Footer Stats --- */
 .editor-footer {
-    height: 36px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-xs);
-    border-top: 1px solid var(--border-light);
-    font-size: 0.8rem;
-    color: var(--text-secondary);
+    border-top: 1px solid var(--glass-border);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    margin-bottom: 64px; /* Lift above floating dev-switcher and bottom nav spacing */
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    width: 100%;
 }
 
 .editor-stat-divider {
@@ -404,8 +409,9 @@
 
 /* --- Editor Dropdowns (Font & Size Picker) --- */
 .editor-dropdown {
-    position: absolute;
-    bottom: 55px;
+    position: fixed;
+    bottom: auto;
+    left: auto;
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     backdrop-filter: blur(24px);

@@ -611,73 +611,10 @@
             
             <!-- Font settings dropdown trigger (Step 5 core logic) -->
             <span class="toolbar-divider"></span>
-            <div style="position: relative; display: inline-block;">
-                <button class="toolbar-btn" id="btn-font-picker">Font</button>
-                <div id="dropdown-font" class="editor-dropdown glass-card" style="bottom: 45px; left: 0;">
-                    <button class="font-option active" data-font="font-merriweather" style="font-family: 'Merriweather', Georgia, serif;">Merriweather (Default)</button>
-                    <button class="font-option" data-font="font-lora" style="font-family: 'Lora', serif;">Lora</button>
-                    <button class="font-option" data-font="font-inter" style="font-family: 'Inter', sans-serif;">Inter</button>
-                    <button class="font-option" data-font="font-caveat" style="font-family: 'Caveat', cursive; font-size: 1.25rem;">Caveat</button>
-                    <button class="font-option" data-font="font-dancing" style="font-family: 'Dancing Script', cursive; font-size: 1.25rem;">Dancing Script</button>
-                    <button class="font-option" data-font="font-pacifico" style="font-family: 'Pacifico', cursive; font-size: 1.15rem;">Pacifico</button>
-                    <button class="font-option" data-font="font-mono" style="font-family: 'JetBrains Mono', monospace;">JetBrains Mono</button>
-                    <button class="font-option" data-font="font-roboto" style="font-family: 'Roboto', sans-serif;">Roboto</button>
-                    <button class="font-option" data-font="font-montserrat" style="font-family: 'Montserrat', sans-serif;">Montserrat</button>
-                    <button class="font-option" data-font="font-great-vibes" style="font-family: 'Great Vibes', cursive; font-size: 1.35rem;">Great Vibes</button>
-                    <button class="font-option" data-font="font-cinzel" style="font-family: 'Cinzel', serif;">Cinzel</button>
-                    <button class="font-option" data-font="font-cormorant" style="font-family: 'Cormorant Garamond', serif; font-style: italic;">Cormorant Garamond</button>
-                    <button class="font-option" data-font="font-comfortaa" style="font-family: 'Comfortaa', cursive;">Comfortaa</button>
-                    <button class="font-option" data-font="font-sacramento" style="font-family: 'Sacramento', cursive; font-size: 1.35rem;">Sacramento</button>
-                    <button class="font-option" data-font="font-special-elite" style="font-family: 'Special Elite', cursive;">Special Elite</button>
-                    <button class="font-option" data-font="font-amatic" style="font-family: 'Amatic SC', cursive; font-size: 1.35rem; font-weight: 700;">Amatic SC</button>
-                    <button class="font-option" data-font="font-playfair" style="font-family: 'Playfair Display', serif;">Playfair Display</button>
-                    <button class="font-option" data-font="font-outfit" style="font-family: 'Outfit', sans-serif;">Outfit</button>
-                    <button class="font-option" data-font="font-architects" style="font-family: 'Architects Daughter', cursive; font-size: 1.15rem;">Architects Daughter</button>
-                    <button class="font-option" data-font="font-abril" style="font-family: 'Abril Fatface', serif; font-size: 1.15rem;">Abril Fatface</button>
-                    <button class="font-option" data-font="font-poiret" style="font-family: 'Poiret One', cursive; font-weight: 600;">Poiret One</button>
-                    <button class="font-option" data-font="font-josefin" style="font-family: 'Josefin Sans', sans-serif;">Josefin Sans</button>
-                    <button class="font-option" data-font="font-satisfy" style="font-family: 'Satisfy', cursive; font-size: 1.25rem;">Satisfy</button>
-                    <button class="font-option" data-font="font-shadows" style="font-family: 'Shadows Into Light', cursive; font-size: 1.15rem;">Shadows Into Light</button>
-                </div>
-            </div>
-
-            <div style="position: relative; display: inline-block;">
-                <button class="toolbar-btn" id="btn-size-picker">A±</button>
-                <div id="dropdown-size" class="editor-dropdown glass-card" style="bottom: 45px; left: 0;">
-                    <button class="size-option" data-size="size-small">Small</button>
-                    <button class="size-option active" data-size="size-medium">Medium</button>
-                    <button class="size-option" data-size="size-large">Large</button>
-                    <button class="size-option" data-size="size-xlarge">X-Large</button>
-                </div>
-            </div>
-
-            <!-- Text Color Picker -->
-            <div style="position: relative; display: inline-block;">
-                <button class="toolbar-btn" id="btn-color-picker" title="Text Color">🎨 Color</button>
-                <div id="dropdown-color" class="editor-dropdown grid-layout glass-card" style="bottom: 45px; left: 0;">
-                    <button class="color-circle color-circle--clear active" data-color="default" title="Default Color"></button>
-                    <button class="color-circle" data-color="#374151" style="background-color: #374151;" title="Charcoal"></button>
-                    <button class="color-circle" data-color="#ef4444" style="background-color: #ef4444;" title="Red"></button>
-                    <button class="color-circle" data-color="#f59e0b" style="background-color: #f59e0b;" title="Amber"></button>
-                    <button class="color-circle" data-color="#10b981" style="background-color: #10b981;" title="Emerald"></button>
-                    <button class="color-circle" data-color="#3b82f6" style="background-color: #3b82f6;" title="Blue"></button>
-                    <button class="color-circle" data-color="#8b5cf6" style="background-color: #8b5cf6;" title="Purple"></button>
-                    <button class="color-circle" data-color="#ec4899" style="background-color: #ec4899;" title="Pink"></button>
-                </div>
-            </div>
-
-            <!-- Text Highlight Picker -->
-            <div style="position: relative; display: inline-block;">
-                <button class="toolbar-btn" id="btn-highlight-picker" title="Highlight Text">🖍️ Highlight</button>
-                <div id="dropdown-highlight" class="editor-dropdown grid-layout glass-card" style="bottom: 45px; left: 0;">
-                    <button class="color-circle color-circle--clear active" data-highlight="default" title="No Highlight"></button>
-                    <button class="color-circle" data-highlight="#fef08a" style="background-color: #fef08a;" title="Yellow Highlight"></button>
-                    <button class="color-circle" data-highlight="#bbf7d0" style="background-color: #bbf7d0;" title="Green Highlight"></button>
-                    <button class="color-circle" data-highlight="#bfdbfe" style="background-color: #bfdbfe;" title="Blue Highlight"></button>
-                    <button class="color-circle" data-highlight="#fbcfe8" style="background-color: #fbcfe8;" title="Pink Highlight"></button>
-                    <button class="color-circle" data-highlight="#e9d5ff" style="background-color: #e9d5ff;" title="Purple Highlight"></button>
-                </div>
-            </div>
+            <button class="toolbar-btn" id="btn-font-picker">Font</button>
+            <button class="toolbar-btn" id="btn-size-picker">A±</button>
+            <button class="toolbar-btn" id="btn-color-picker" title="Text Color">🎨 Color</button>
+            <button class="toolbar-btn" id="btn-highlight-picker" title="Highlight Text">🖍️ Highlight</button>
         </div>
 
         <!-- Main text writing core area -->
@@ -691,6 +628,64 @@
             <span class="editor-stat-divider">·</span>
             <span id="editor-read-time">1 min read</span>
         </div>
+
+        <!-- Popovers moved to main screen wrapper to prevent overflow clipping by the horizontal scrolling toolbar -->
+        <div id="dropdown-font" class="editor-dropdown glass-card">
+            <button class="font-option active" data-font="font-merriweather" style="font-family: 'Merriweather', Georgia, serif;">Merriweather (Default)</button>
+            <button class="font-option" data-font="font-lora" style="font-family: 'Lora', serif;">Lora</button>
+            <button class="font-option" data-font="font-inter" style="font-family: 'Inter', sans-serif;">Inter</button>
+            <button class="font-option" data-font="font-caveat" style="font-family: 'Caveat', cursive; font-size: 1.25rem;">Caveat</button>
+            <button class="font-option" data-font="font-dancing" style="font-family: 'Dancing Script', cursive; font-size: 1.25rem;">Dancing Script</button>
+            <button class="font-option" data-font="font-pacifico" style="font-family: 'Pacifico', cursive; font-size: 1.15rem;">Pacifico</button>
+            <button class="font-option" data-font="font-mono" style="font-family: 'JetBrains Mono', monospace;">JetBrains Mono</button>
+            <button class="font-option" data-font="font-roboto" style="font-family: 'Roboto', sans-serif;">Roboto</button>
+            <button class="font-option" data-font="font-montserrat" style="font-family: 'Montserrat', sans-serif;">Montserrat</button>
+            <button class="font-option" data-font="font-great-vibes" style="font-family: 'Great Vibes', cursive; font-size: 1.35rem;">Great Vibes</button>
+            <button class="font-option" data-font="font-cinzel" style="font-family: 'Cinzel', serif;">Cinzel</button>
+            <button class="font-option" data-font="font-cormorant" style="font-family: 'Cormorant Garamond', serif; font-style: italic;">Cormorant Garamond</button>
+            <button class="font-option" data-font="font-comfortaa" style="font-family: 'Comfortaa', cursive;">Comfortaa</button>
+            <button class="font-option" data-font="font-sacramento" style="font-family: 'Sacramento', cursive; font-size: 1.35rem;">Sacramento</button>
+            <button class="font-option" data-font="font-special-elite" style="font-family: 'Special Elite', cursive;">Special Elite</button>
+            <button class="font-option" data-font="font-amatic" style="font-family: 'Amatic SC', cursive; font-size: 1.35rem; font-weight: 700;">Amatic SC</button>
+            <button class="font-option" data-font="font-playfair" style="font-family: 'Playfair Display', serif;">Playfair Display</button>
+            <button class="font-option" data-font="font-outfit" style="font-family: 'Outfit', sans-serif;">Outfit</button>
+            <button class="font-option" data-font="font-architects" style="font-family: 'Architects Daughter', cursive; font-size: 1.15rem;">Architects Daughter</button>
+            <button class="font-option" data-font="font-abril" style="font-family: 'Abril Fatface', serif; font-size: 1.15rem;">Abril Fatface</button>
+            <button class="font-option" data-font="font-poiret" style="font-family: 'Poiret One', cursive; font-weight: 600;">Poiret One</button>
+            <button class="font-option" data-font="font-josefin" style="font-family: 'Josefin Sans', sans-serif;">Josefin Sans</button>
+            <button class="font-option" data-font="font-satisfy" style="font-family: 'Satisfy', cursive; font-size: 1.25rem;">Satisfy</button>
+            <button class="font-option" data-font="font-shadows" style="font-family: 'Shadows Into Light', cursive; font-size: 1.15rem;">Shadows Into Light</button>
+        </div>
+
+        <div id="dropdown-size" class="editor-dropdown glass-card">
+            <button class="size-option" data-size="size-small">Small</button>
+            <button class="size-option active" data-size="size-medium">Medium</button>
+            <button class="size-option" data-size="size-large">Large</button>
+            <button class="size-option" data-size="size-xlarge">X-Large</button>
+        </div>
+
+        <!-- Text Color Picker -->
+        <div id="dropdown-color" class="editor-dropdown grid-layout glass-card">
+            <button class="color-circle color-circle--clear active" data-color="default" title="Default Color"></button>
+            <button class="color-circle" data-color="#374151" style="background-color: #374151;" title="Charcoal"></button>
+            <button class="color-circle" data-color="#ef4444" style="background-color: #ef4444;" title="Red"></button>
+            <button class="color-circle" data-color="#f59e0b" style="background-color: #f59e0b;" title="Amber"></button>
+            <button class="color-circle" data-color="#10b981" style="background-color: #10b981;" title="Emerald"></button>
+            <button class="color-circle" data-color="#3b82f6" style="background-color: #3b82f6;" title="Blue"></button>
+            <button class="color-circle" data-color="#8b5cf6" style="background-color: #8b5cf6;" title="Purple"></button>
+            <button class="color-circle" data-color="#ec4899" style="background-color: #ec4899;" title="Pink"></button>
+        </div>
+
+        <!-- Text Highlight Picker -->
+        <div id="dropdown-highlight" class="editor-dropdown grid-layout glass-card">
+            <button class="color-circle color-circle--clear active" data-highlight="default" title="No Highlight"></button>
+            <button class="color-circle" data-highlight="#fef08a" style="background-color: #fef08a;" title="Yellow Highlight"></button>
+            <button class="color-circle" data-highlight="#bbf7d0" style="background-color: #bbf7d0;" title="Green Highlight"></button>
+            <button class="color-circle" data-highlight="#bfdbfe" style="background-color: #bfdbfe;" title="Blue Highlight"></button>
+            <button class="color-circle" data-highlight="#fbcfe8" style="background-color: #fbcfe8;" title="Pink Highlight"></button>
+            <button class="color-circle" data-highlight="#e9d5ff" style="background-color: #e9d5ff;" title="Purple Highlight"></button>
+        </div>
+    </div>
     </div>
 
     <!-- ==========================================
