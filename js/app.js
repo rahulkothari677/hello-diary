@@ -252,6 +252,19 @@ const HelloApp = (function() {
             // 1. Initialize DB Connection
             await HelloDB.initDatabase();
 
+            // Load custom themes from database and populate THEMES array
+            const customThemes = await HelloDB.getSetting('custom-themes');
+            if (customThemes && Array.isArray(customThemes)) {
+                customThemes.forEach(theme => {
+                    if (window.THEMES && !window.THEMES.find(t => t.id === theme.id)) {
+                        window.THEMES.push(theme);
+                    }
+                });
+            }
+
+            // Start Particle Canvas Loop
+            HelloParticles.init();
+
             // 2. Wrap the global applyTheme function to save to DB settings store
             wrapThemeSwitches();
 
@@ -276,6 +289,7 @@ const HelloApp = (function() {
             initLockFlow();
             initDashboardControllers();
             initEditorControllers();
+            await initImmersiveControllers();
 
             // Start Auto-save Engine
             startAutoSaveInterval();
@@ -2729,6 +2743,1036 @@ const HelloApp = (function() {
                 if (dropdown) dropdown.classList.remove('active');
             });
         });
+    }
+
+    // -------------------------------------------------------------
+    // Ambient Sound & Synthesis Mixer Engine (Web Audio API)
+    // -------------------------------------------------------------
+    const HelloAudio = (function() {
+        let audioCtx = null;
+        let masterGain = null;
+        let isAmbientEnabled = false;
+        let isTypewriterEnabled = true;
+        
+        // Channel nodes
+        const channels = {};
+
+        function initContext() {
+            if (audioCtx) return;
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioCtx();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.5; // Default master vol
+            masterGain.connect(audioCtx.destination);
+            
+            // Build noise buffer once
+            const bufferSize = 2 * audioCtx.sampleRate;
+            const pinkBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = pinkBuffer.getChannelData(0);
+            let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                b0 = 0.99886 * b0 + white * 0.0555179;
+                b1 = 0.99332 * b1 + white * 0.0750759;
+                b2 = 0.96900 * b2 + white * 0.1538520;
+                b3 = 0.86650 * b3 + white * 0.3104856;
+                b4 = 0.55000 * b4 + white * 0.5329522;
+                b5 = -0.7616 * b5 - white * 0.0168980;
+                output[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+                output[i] *= 0.11;
+                b6 = white * 0.115926;
+            }
+            
+            // Setup channels
+            setupPinkNoiseChannel('rain', pinkBuffer, 800);      
+            setupWindChannel('wind', pinkBuffer);               
+            setupOceanChannel('ocean', pinkBuffer);             
+            setupFireplaceChannel('fireplace');                  
+            setupCricketsChannel('crickets');                    
+            setupClockChannel('clock');                          
+            setupCafeChannel('cafe', pinkBuffer);               
+            setupLofiChannel('lofi');                            
+        }
+        
+        function setupPinkNoiseChannel(name, buffer, lpFreq) {
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0.0; 
+            gainNode.connect(masterGain);
+            
+            const filterNode = audioCtx.createBiquadFilter();
+            filterNode.type = 'lowpass';
+            filterNode.frequency.value = lpFreq;
+            filterNode.connect(gainNode);
+            
+            let source = null;
+            
+            channels[name] = {
+                gain: gainNode,
+                play: () => {
+                    if (source) return;
+                    source = audioCtx.createBufferSource();
+                    source.buffer = buffer;
+                    source.loop = true;
+                    source.connect(filterNode);
+                    source.start(0);
+                },
+                stop: () => {
+                    if (!source) return;
+                    try { source.stop(); } catch(e){}
+                    source = null;
+                }
+            };
+        }
+
+        function setupWindChannel(name, buffer) {
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0.0;
+            gainNode.connect(masterGain);
+            
+            const filterNode = audioCtx.createBiquadFilter();
+            filterNode.type = 'bandpass';
+            filterNode.Q.value = 2.5;
+            filterNode.frequency.value = 400;
+            filterNode.connect(gainNode);
+            
+            let source = null;
+            let timer = null;
+            
+            channels[name] = {
+                gain: gainNode,
+                play: () => {
+                    if (source) return;
+                    source = audioCtx.createBufferSource();
+                    source.buffer = buffer;
+                    source.loop = true;
+                    source.connect(filterNode);
+                    source.start(0);
+                    
+                    timer = setInterval(() => {
+                        if (!audioCtx) return;
+                        const t = audioCtx.currentTime;
+                        const nextFreq = 300 + Math.random() * 250;
+                        filterNode.frequency.exponentialRampToValueAtTime(nextFreq, t + 3);
+                    }, 3000);
+                },
+                stop: () => {
+                    if (source) {
+                        try { source.stop(); } catch(e){}
+                        source = null;
+                    }
+                    if (timer) {
+                        clearInterval(timer);
+                        timer = null;
+                    }
+                }
+            };
+        }
+
+        function setupOceanChannel(name, buffer) {
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0.0;
+            gainNode.connect(masterGain);
+            
+            const filterNode = audioCtx.createBiquadFilter();
+            filterNode.type = 'lowpass';
+            filterNode.frequency.value = 350;
+            filterNode.connect(gainNode);
+            
+            const waveGain = audioCtx.createGain();
+            waveGain.gain.value = 0.5;
+            waveGain.connect(filterNode);
+            
+            let source = null;
+            let timer = null;
+            
+            channels[name] = {
+                gain: gainNode,
+                play: () => {
+                    if (source) return;
+                    source = audioCtx.createBufferSource();
+                    source.buffer = buffer;
+                    source.loop = true;
+                    source.connect(waveGain);
+                    source.start(0);
+                    
+                    let swell = true;
+                    timer = setInterval(() => {
+                        if (!audioCtx) return;
+                        const t = audioCtx.currentTime;
+                        const nextVol = swell ? 0.9 : 0.15;
+                        waveGain.gain.linearRampToValueAtTime(nextVol, t + 4.5);
+                        swell = !swell;
+                    }, 4500);
+                },
+                stop: () => {
+                    if (source) {
+                        try { source.stop(); } catch(e){}
+                        source = null;
+                    }
+                    if (timer) {
+                        clearInterval(timer);
+                        timer = null;
+                    }
+                }
+            };
+        }
+
+        function setupFireplaceChannel(name) {
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0.0;
+            gainNode.connect(masterGain);
+            
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = 55;
+            
+            const lowpass = audioCtx.createBiquadFilter();
+            lowpass.type = 'lowpass';
+            lowpass.frequency.value = 80;
+            
+            const rumbleGain = audioCtx.createGain();
+            rumbleGain.gain.value = 0.08;
+            
+            osc.connect(lowpass);
+            lowpass.connect(rumbleGain);
+            rumbleGain.connect(gainNode);
+            
+            let timer = null;
+            let isPlaying = false;
+            
+            channels[name] = {
+                gain: gainNode,
+                play: () => {
+                    if (isPlaying) return;
+                    isPlaying = true;
+                    try { osc.start(0); } catch(e){}
+                    
+                    timer = setInterval(() => {
+                        if (!audioCtx || !isAmbientEnabled) return;
+                        const t = audioCtx.currentTime;
+                        const click = audioCtx.createOscillator();
+                        click.type = 'triangle';
+                        click.frequency.value = 800 + Math.random() * 1200;
+                        
+                        const clickFilter = audioCtx.createBiquadFilter();
+                        clickFilter.type = 'highpass';
+                        clickFilter.frequency.value = 2000;
+                        
+                        const clickGain = audioCtx.createGain();
+                        clickGain.gain.setValueAtTime(0.0, t);
+                        clickGain.gain.linearRampToValueAtTime(0.04 + Math.random() * 0.05, t + 0.002);
+                        clickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.02 + Math.random() * 0.04);
+                        
+                        click.connect(clickFilter);
+                        clickFilter.connect(clickGain);
+                        clickGain.connect(gainNode);
+                        
+                        click.start(t);
+                        click.stop(t + 0.1);
+                    }, 180);
+                },
+                stop: () => {
+                    isPlaying = false;
+                    if (timer) {
+                        clearInterval(timer);
+                        timer = null;
+                    }
+                }
+            };
+        }
+
+        function setupCricketsChannel(name) {
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0.0;
+            gainNode.connect(masterGain);
+            
+            let timer = null;
+            let isPlaying = false;
+            
+            channels[name] = {
+                gain: gainNode,
+                play: () => {
+                    if (isPlaying) return;
+                    isPlaying = true;
+                    
+                    timer = setInterval(() => {
+                        if (!audioCtx || !isAmbientEnabled) return;
+                        const t = audioCtx.currentTime;
+                        
+                        for (let j = 0; j < 3; j++) {
+                            const delay = j * 0.08;
+                            const chirp = audioCtx.createOscillator();
+                            chirp.type = 'sine';
+                            chirp.frequency.value = 3800 + Math.random() * 150;
+                            
+                            const chirpGain = audioCtx.createGain();
+                            chirpGain.gain.setValueAtTime(0.0001, t + delay);
+                            chirpGain.gain.linearRampToValueAtTime(0.03, t + delay + 0.01);
+                            chirpGain.gain.exponentialRampToValueAtTime(0.0001, t + delay + 0.05);
+                            
+                            chirp.connect(chirpGain);
+                            chirpGain.connect(gainNode);
+                            chirp.start(t + delay);
+                            chirp.stop(t + delay + 0.06);
+                        }
+                    }, 1400);
+                },
+                stop: () => {
+                    isPlaying = false;
+                    if (timer) {
+                        clearInterval(timer);
+                        timer = null;
+                    }
+                }
+            };
+        }
+
+        function setupClockChannel(name) {
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0.0;
+            gainNode.connect(masterGain);
+            
+            let timer = null;
+            let isPlaying = false;
+            
+            channels[name] = {
+                gain: gainNode,
+                play: () => {
+                    if (isPlaying) return;
+                    isPlaying = true;
+                    
+                    timer = setInterval(() => {
+                        if (!audioCtx || !isAmbientEnabled) return;
+                        const t = audioCtx.currentTime;
+                        
+                        const tick = audioCtx.createOscillator();
+                        tick.type = 'sine';
+                        tick.frequency.value = 1600;
+                        
+                        const tickGain = audioCtx.createGain();
+                        tickGain.gain.setValueAtTime(0.0001, t);
+                        tickGain.gain.linearRampToValueAtTime(0.012, t + 0.001);
+                        tickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.005);
+                        
+                        tick.connect(tickGain);
+                        tickGain.connect(gainNode);
+                        tick.start(t);
+                        tick.stop(t + 0.01);
+                    }, 1000);
+                },
+                stop: () => {
+                    isPlaying = false;
+                    if (timer) {
+                        clearInterval(timer);
+                        timer = null;
+                    }
+                }
+            };
+        }
+
+        function setupCafeChannel(name, buffer) {
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0.0;
+            gainNode.connect(masterGain);
+            
+            const filterNode = audioCtx.createBiquadFilter();
+            filterNode.type = 'bandpass';
+            filterNode.frequency.value = 250;
+            filterNode.Q.value = 1.0;
+            filterNode.connect(gainNode);
+            
+            let source = null;
+            let timer = null;
+            
+            channels[name] = {
+                gain: gainNode,
+                play: () => {
+                    if (source) return;
+                    source = audioCtx.createBufferSource();
+                    source.buffer = buffer;
+                    source.loop = true;
+                    source.connect(filterNode);
+                    source.start(0);
+                    
+                    timer = setInterval(() => {
+                        if (!audioCtx || !isAmbientEnabled) return;
+                        const t = audioCtx.currentTime;
+                        const clink = audioCtx.createOscillator();
+                        clink.type = 'sine';
+                        clink.frequency.setValueAtTime(2200 + Math.random() * 1000, t);
+                        clink.frequency.exponentialRampToValueAtTime(1000, t + 0.05);
+                        
+                        const clinkGain = audioCtx.createGain();
+                        clinkGain.gain.setValueAtTime(0.0, t);
+                        clinkGain.gain.linearRampToValueAtTime(0.02, t + 0.002);
+                        clinkGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+                        
+                        clink.connect(clinkGain);
+                        clinkGain.connect(gainNode);
+                        
+                        clink.start(t);
+                        clink.stop(t + 0.1);
+                    }, 4000);
+                },
+                stop: () => {
+                    if (source) {
+                        try { source.stop(); } catch(e){}
+                        source = null;
+                    }
+                    if (timer) {
+                        clearInterval(timer);
+                        timer = null;
+                    }
+                }
+            };
+        }
+
+        function setupLofiChannel(name) {
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0.0;
+            gainNode.connect(masterGain);
+            
+            let timer = null;
+            let isPlaying = false;
+            
+            const chordNotesList = [
+                [110.0, 261.63, 329.63, 392.00], 
+                [146.83, 174.61, 220.00, 261.63], 
+                [98.00, 246.94, 293.66, 349.23],  
+                [130.81, 164.81, 196.00, 246.94]  
+            ];
+            
+            let chordIdx = 0;
+            
+            channels[name] = {
+                gain: gainNode,
+                play: () => {
+                    if (isPlaying) return;
+                    isPlaying = true;
+                    
+                    timer = setInterval(() => {
+                        if (!audioCtx || !isAmbientEnabled) return;
+                        const t = audioCtx.currentTime;
+                        const notes = chordNotesList[chordIdx];
+                        
+                        notes.forEach((freq, noteIdx) => {
+                            const delay = noteIdx * 0.06;
+                            const osc = audioCtx.createOscillator();
+                            osc.type = 'triangle';
+                            osc.frequency.value = freq;
+                            
+                            const oscFilter = audioCtx.createBiquadFilter();
+                            oscFilter.type = 'lowpass';
+                            oscFilter.frequency.value = 600;
+                            
+                            const noteGain = audioCtx.createGain();
+                            noteGain.gain.setValueAtTime(0.0, t + delay);
+                            noteGain.gain.linearRampToValueAtTime(0.04, t + delay + 0.15);
+                            noteGain.gain.exponentialRampToValueAtTime(0.0001, t + delay + 3.8);
+                            
+                            osc.connect(oscFilter);
+                            oscFilter.connect(noteGain);
+                            noteGain.connect(gainNode);
+                            
+                            osc.start(t + delay);
+                            osc.stop(t + delay + 4);
+                        });
+                        
+                        chordIdx = (chordIdx + 1) % chordNotesList.length;
+                    }, 4000);
+                },
+                stop: () => {
+                    isPlaying = false;
+                    if (timer) {
+                        clearInterval(timer);
+                        timer = null;
+                    }
+                }
+            };
+        }
+        
+        function setMasterVolume(val) {
+            if (masterGain) {
+                masterGain.gain.value = Number(val);
+            }
+        }
+        
+        function setChannelVolume(name, val) {
+            initContext();
+            if (channels[name]) {
+                channels[name].gain.gain.value = Number(val);
+                if (isAmbientEnabled && Number(val) > 0) {
+                    channels[name].play();
+                } else if (Number(val) === 0) {
+                    channels[name].stop();
+                }
+            }
+        }
+        
+        function setAmbientEnabled(enable) {
+            initContext();
+            isAmbientEnabled = !!enable;
+            
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            Object.keys(channels).forEach(name => {
+                const vol = channels[name].gain.gain.value;
+                if (isAmbientEnabled && vol > 0) {
+                    channels[name].play();
+                } else {
+                    channels[name].stop();
+                }
+            });
+        }
+        
+        function setTypewriterEnabled(enable) {
+            isTypewriterEnabled = !!enable;
+        }
+
+        function playTypewriterClick() {
+            if (!isTypewriterEnabled) return;
+            initContext();
+            
+            const t = audioCtx.currentTime;
+            const click = audioCtx.createOscillator();
+            click.type = 'sine';
+            click.frequency.setValueAtTime(1200 + Math.random() * 600, t);
+            click.frequency.exponentialRampToValueAtTime(600, t + 0.02);
+            
+            const clickFilter = audioCtx.createBiquadFilter();
+            clickFilter.type = 'highpass';
+            clickFilter.frequency.value = 1000;
+            
+            const clickGain = audioCtx.createGain();
+            clickGain.gain.setValueAtTime(0.0001, t);
+            clickGain.gain.linearRampToValueAtTime(0.05, t + 0.001);
+            clickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
+            
+            click.connect(clickFilter);
+            clickFilter.connect(clickGain);
+            clickGain.connect(audioCtx.destination); 
+            
+            click.start(t);
+            click.stop(t + 0.03);
+        }
+
+        return {
+            init: initContext,
+            setMasterVolume,
+            setChannelVolume,
+            setAmbientEnabled,
+            setTypewriterEnabled,
+            playTypewriterClick,
+            isPlaying: () => isAmbientEnabled
+        };
+    })();
+
+    // -------------------------------------------------------------
+    // Canvas Theme-Specific Particle Animation Loop
+    // -------------------------------------------------------------
+    const HelloParticles = (function() {
+        let canvas = null;
+        let ctx = null;
+        let animationId = null;
+        let currentMode = 'stars'; 
+        let particles = [];
+
+        function init() {
+            canvas = document.getElementById('theme-particles-canvas');
+            if (!canvas) return;
+            ctx = canvas.getContext('2d');
+            
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+            
+            startLoop();
+        }
+
+        function resizeCanvas() {
+            if (canvas) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+        }
+
+        function updateTheme(themeId) {
+            const starsThemes = ['midnight-abyss', 'aurora-borealis', 'cosmic-universe', 'arctic-aurora', 'royal-purple'];
+            const petalsThemes = ['sakura-garden', 'cherry-blossom-night'];
+            const rainThemes = ['rainy-day', 'tropical-paradise', 'ocean-depths'];
+            const firefliesThemes = ['forest-sanctuary', 'autumn-harvest', 'golden-hour', 'animal-kingdom'];
+            const mistThemes = ['minimal-zen', 'vintage-typewriter'];
+
+            if (starsThemes.includes(themeId)) {
+                currentMode = 'stars';
+            } else if (petalsThemes.includes(themeId)) {
+                currentMode = 'petals';
+            } else if (rainThemes.includes(themeId)) {
+                currentMode = 'rain';
+            } else if (firefliesThemes.includes(themeId)) {
+                currentMode = 'fireflies';
+            } else if (mistThemes.includes(themeId)) {
+                currentMode = 'mist';
+            } else {
+                currentMode = 'stars'; 
+            }
+            
+            particles = []; 
+        }
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                if (!canvas) return;
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = 0.5 + Math.random() * 2.5;
+                this.speedX = 0;
+                this.speedY = 0;
+                this.alpha = 0.1 + Math.random() * 0.8;
+                this.fadeSpeed = 0.005 + Math.random() * 0.01;
+                this.angle = Math.random() * 360;
+                this.angleSpeed = Math.random() * 2 - 1;
+
+                if (currentMode === 'stars') {
+                    this.speedX = 0;
+                    this.speedY = 0;
+                    this.size = 0.8 + Math.random() * 1.5;
+                } else if (currentMode === 'petals') {
+                    this.y = -10;
+                    this.x = Math.random() * canvas.width;
+                    this.size = 6 + Math.random() * 6;
+                    this.speedY = 0.8 + Math.random() * 1.2;
+                    this.speedX = -0.5 + Math.random() * 1.0;
+                } else if (currentMode === 'rain') {
+                    this.y = -20;
+                    this.x = Math.random() * canvas.width;
+                    this.size = 1 + Math.random() * 1.5;
+                    this.speedY = 6 + Math.random() * 4;
+                    this.speedX = -0.8;
+                } else if (currentMode === 'fireflies') {
+                    this.speedX = -0.3 + Math.random() * 0.6;
+                    this.speedY = -0.3 + Math.random() * 0.6;
+                    this.size = 2 + Math.random() * 2.5;
+                } else if (currentMode === 'mist') {
+                    this.size = 30 + Math.random() * 60;
+                    this.speedX = 0.05 + Math.random() * 0.1;
+                    this.speedY = -0.05 - Math.random() * 0.1;
+                    this.alpha = 0.02 + Math.random() * 0.08;
+                }
+            }
+
+            update() {
+                if (!canvas) return;
+                if (currentMode === 'stars') {
+                    this.alpha += this.fadeSpeed;
+                    if (this.alpha > 0.95 || this.alpha < 0.05) {
+                        this.fadeSpeed = -this.fadeSpeed;
+                    }
+                } else if (currentMode === 'petals') {
+                    this.y += this.speedY;
+                    this.x += this.speedX;
+                    this.angle += this.angleSpeed;
+                    if (this.y > canvas.height + 10) this.reset();
+                } else if (currentMode === 'rain') {
+                    this.y += this.speedY;
+                    this.x += this.speedX;
+                    if (this.y > canvas.height + 10) this.reset();
+                } else if (currentMode === 'fireflies') {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    this.alpha += this.fadeSpeed;
+                    if (this.alpha > 0.9 || this.alpha < 0.1) {
+                        this.fadeSpeed = -this.fadeSpeed;
+                    }
+                    if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+                        this.reset();
+                    }
+                } else if (currentMode === 'mist') {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    if (this.y < -this.size || this.x > canvas.width + this.size) {
+                        this.reset();
+                    }
+                }
+            }
+
+            draw() {
+                if (!ctx) return;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, Math.min(1, this.alpha));
+                
+                if (currentMode === 'stars') {
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (currentMode === 'petals') {
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate((this.angle * Math.PI) / 180);
+                    ctx.fillStyle = '#FFC0CB'; 
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, this.size, this.size / 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (currentMode === 'rain') {
+                    ctx.strokeStyle = 'rgba(174, 207, 238, 0.4)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.x + this.speedX * 1.5, this.y + this.speedY * 1.5);
+                    ctx.stroke();
+                } else if (currentMode === 'fireflies') {
+                    ctx.fillStyle = 'rgba(235, 255, 120, 1)';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = 'rgba(235, 255, 120, 0.8)';
+                    ctx.fill();
+                } else if (currentMode === 'mist') {
+                    const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+                    grad.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+                    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            }
+        }
+
+        function startLoop() {
+            if (animationId) return;
+            
+            const maxParticles = 65;
+            for (let i = 0; i < maxParticles; i++) {
+                particles.push(new Particle());
+            }
+
+            function loop() {
+                if (!canvas || !ctx) return;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                particles.forEach(p => {
+                    p.update();
+                    p.draw();
+                });
+
+                animationId = requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        function stopLoop() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+        }
+
+        return {
+            init,
+            updateTheme,
+            start: startLoop,
+            stop: stopLoop
+        };
+    })();
+    window.HelloParticles = HelloParticles;
+
+    // Theme Scheduler check loop
+    async function checkThemeSchedule() {
+        const enabled = await HelloDB.getSetting('theme-schedule-enabled');
+        if (!enabled) return;
+        
+        const dayTheme = await HelloDB.getSetting('theme-schedule-day') || 'serene-dawn';
+        const nightTheme = await HelloDB.getSetting('theme-schedule-night') || 'midnight-abyss';
+        
+        const hour = new Date().getHours();
+        const isDay = (hour >= 7 && hour < 19); 
+        const targetTheme = isDay ? dayTheme : nightTheme;
+        
+        const currentTheme = localStorage.getItem('hello-diary-theme') || 'serene-dawn';
+        if (currentTheme !== targetTheme) {
+            if (window.applyTheme) {
+                window.applyTheme(targetTheme);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Immersive Controls Initializer
+    // -------------------------------------------------------------
+    async function initImmersiveControllers() {
+        // 1. Hook Sound Mixer UI
+        const btnMainMixer = document.getElementById('btn-sound-mixer-toggle');
+        const btnEditorMixer = document.getElementById('btn-editor-sound-mixer-toggle');
+        const popoverMixer = document.getElementById('popover-sound-mixer');
+        
+        function toggleMixer(btn) {
+            const isVisible = popoverMixer.style.display === 'flex';
+            popoverMixer.style.display = isVisible ? 'none' : 'flex';
+            if (!isVisible) {
+                const rect = btn.getBoundingClientRect();
+                popoverMixer.style.top = (rect.bottom + window.scrollY + 10) + 'px';
+                let left = rect.left + window.scrollX - 150 + (rect.width / 2);
+                if (left < 16) left = 16;
+                if (left + 300 > window.innerWidth) {
+                    left = window.innerWidth - 300 - 16;
+                }
+                popoverMixer.style.left = left + 'px';
+            }
+        }
+        
+        if (btnMainMixer && popoverMixer) {
+            btnMainMixer.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleMixer(btnMainMixer);
+            });
+        }
+        if (btnEditorMixer && popoverMixer) {
+            btnEditorMixer.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleMixer(btnEditorMixer);
+            });
+        }
+        
+        document.addEventListener('click', () => {
+            if (popoverMixer) popoverMixer.style.display = 'none';
+        });
+        if (popoverMixer) {
+            popoverMixer.addEventListener('click', (e) => e.stopPropagation());
+        }
+        
+        const toggleAmbient = document.getElementById('toggle-ambient-sound');
+        const masterVol = document.getElementById('volume-master');
+        const toggleTypewriter = document.getElementById('toggle-typewriter-sound');
+        
+        if (toggleAmbient) {
+            toggleAmbient.addEventListener('change', () => {
+                HelloAudio.setAmbientEnabled(toggleAmbient.checked);
+            });
+        }
+        
+        if (masterVol) {
+            masterVol.addEventListener('input', () => {
+                HelloAudio.setMasterVolume(masterVol.value);
+            });
+        }
+        
+        if (toggleTypewriter) {
+            toggleTypewriter.addEventListener('change', () => {
+                HelloAudio.setTypewriterEnabled(toggleTypewriter.checked);
+            });
+        }
+        
+        document.querySelectorAll('.volume-channel').forEach(slider => {
+            slider.addEventListener('input', () => {
+                const channel = slider.dataset.channel;
+                HelloAudio.setChannelVolume(channel, slider.value);
+            });
+        });
+
+        // Typewriter click on editor keydowns
+        const editorField = document.getElementById('rich-editor-field');
+        if (editorField) {
+            editorField.addEventListener('keydown', (e) => {
+                const ignoredKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Shift', 'Control', 'Alt', 'Meta', 'Escape', 'CapsLock'];
+                if (!ignoredKeys.includes(e.key)) {
+                    HelloAudio.playTypewriterClick();
+                }
+            });
+        }
+
+        // 2. Custom Theme Creator
+        const btnSaveTheme = document.getElementById('btn-save-custom-theme');
+        if (btnSaveTheme) {
+            btnSaveTheme.addEventListener('click', async () => {
+                const nameInput = document.getElementById('custom-theme-name');
+                const name = nameInput ? nameInput.value.trim() : '';
+                if (!name) {
+                    showToast('Please enter a theme name.');
+                    return;
+                }
+                
+                const primary = document.getElementById('theme-color-primary').value;
+                const secondary = document.getElementById('theme-color-secondary').value;
+                const text = document.getElementById('theme-color-text').value;
+                const accent = document.getElementById('theme-color-accent').value;
+                
+                const themeId = 'custom-' + name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                
+                const newTheme = {
+                    id: themeId,
+                    name: name,
+                    emoji: '🎨',
+                    category: 'Custom',
+                    accent: accent,
+                    bg: primary,
+                    isImage: false,
+                    colors: {
+                        primary,
+                        secondary,
+                        text,
+                        accent
+                    }
+                };
+                
+                const themesList = window.THEMES || [];
+                const index = themesList.findIndex(t => t.id === themeId);
+                if (index >= 0) {
+                    themesList[index] = newTheme;
+                } else {
+                    themesList.push(newTheme);
+                }
+                
+                const customThemes = themesList.filter(t => t.id.startsWith('custom-'));
+                await HelloDB.setSetting('custom-themes', customThemes);
+                
+                if (window.populateThemeGallery) {
+                    window.populateThemeGallery('theme-picker-setup');
+                    window.populateThemeGallery('theme-picker-settings');
+                }
+                
+                if (window.applyTheme) {
+                    window.applyTheme(themeId);
+                }
+                
+                nameInput.value = '';
+                showToast(`Custom theme "${name}" created successfully!`);
+            });
+        }
+
+        // 3. Theme Scheduler Settings
+        const toggleSchedule = document.getElementById('toggle-theme-schedule');
+        const scheduleOptions = document.getElementById('theme-schedule-options');
+        const selectDayTheme = document.getElementById('scheduler-day-theme');
+        const selectNightTheme = document.getElementById('scheduler-night-theme');
+        const themesList = window.THEMES || [];
+        
+        if (toggleSchedule) {
+            const enabled = await HelloDB.getSetting('theme-schedule-enabled');
+            toggleSchedule.checked = !!enabled;
+            if (scheduleOptions) scheduleOptions.style.display = enabled ? 'flex' : 'none';
+            
+            if (selectDayTheme && selectNightTheme) {
+                const optionsHtml = themesList.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+                selectDayTheme.innerHTML = optionsHtml;
+                selectNightTheme.innerHTML = optionsHtml;
+                
+                const savedDay = await HelloDB.getSetting('theme-schedule-day') || 'serene-dawn';
+                const savedNight = await HelloDB.getSetting('theme-schedule-night') || 'midnight-abyss';
+                selectDayTheme.value = savedDay;
+                selectNightTheme.value = savedNight;
+            }
+            
+            toggleSchedule.addEventListener('change', async () => {
+                const checked = toggleSchedule.checked;
+                await HelloDB.setSetting('theme-schedule-enabled', checked);
+                if (scheduleOptions) scheduleOptions.style.display = checked ? 'flex' : 'none';
+                if (checked) {
+                    await checkThemeSchedule();
+                }
+            });
+            
+            if (selectDayTheme) {
+                selectDayTheme.addEventListener('change', async () => {
+                    await HelloDB.setSetting('theme-schedule-day', selectDayTheme.value);
+                    await checkThemeSchedule();
+                });
+            }
+            
+            if (selectNightTheme) {
+                selectNightTheme.addEventListener('change', async () => {
+                    await HelloDB.setSetting('theme-schedule-night', selectNightTheme.value);
+                    await checkThemeSchedule();
+                });
+            }
+        }
+
+        // Run Scheduler immediately and start 60s check interval
+        await checkThemeSchedule();
+        setInterval(checkThemeSchedule, 60000);
+
+        // 4. Editor Sticker Picker
+        const btnSticker = document.getElementById('btn-sticker-picker');
+        const dropdownSticker = document.getElementById('dropdown-sticker');
+        
+        if (btnSticker && dropdownSticker) {
+            btnSticker.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.editor-dropdown').forEach(d => {
+                    if (d !== dropdownSticker) d.classList.remove('active');
+                });
+                const isHidden = dropdownSticker.style.display === 'none';
+                dropdownSticker.style.display = isHidden ? 'block' : 'none';
+                
+                if (isHidden) {
+                    const rect = btnSticker.getBoundingClientRect();
+                    dropdownSticker.style.bottom = (window.innerHeight - rect.top + window.scrollY + 6) + 'px';
+                    let left = rect.left + window.scrollX;
+                    if (left + 280 > window.innerWidth) {
+                        left = window.innerWidth - 280 - 16;
+                    }
+                    dropdownSticker.style.left = left + 'px';
+                }
+            });
+            
+            document.addEventListener('click', () => {
+                if (dropdownSticker) dropdownSticker.style.display = 'none';
+            });
+            dropdownSticker.addEventListener('click', (e) => e.stopPropagation());
+            
+            dropdownSticker.querySelectorAll('.sticker-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    const sticker = opt.dataset.sticker;
+                    insertStickerInEditor(sticker);
+                    dropdownSticker.style.display = 'none';
+                });
+            });
+        }
+        
+        function insertStickerInEditor(emoji) {
+            const editor = document.getElementById('rich-editor-field');
+            if (!editor) return;
+            
+            const wrapperId = 'sticker-' + Date.now();
+            const html = `<span class="diary-sticker-wrapper" contenteditable="false" id="${wrapperId}">${emoji}<button class="sticker-delete-btn" onclick="document.getElementById('${wrapperId}').remove()">&times;</button></span>`;
+            
+            editor.focus();
+            
+            const sel = window.getSelection();
+            if (sel.getRangeAt && sel.rangeCount) {
+                const range = sel.getRangeAt(0);
+                if (editor.contains(range.commonAncestorContainer)) {
+                    range.deleteContents();
+                    const el = document.createElement('div');
+                    el.innerHTML = html;
+                    const node = el.firstElementChild;
+                    range.insertNode(node);
+                    
+                    range.setStartAfter(node);
+                    range.setEndAfter(node);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    
+                    editorDirty = true;
+                    const saveBadge = document.getElementById('save-indicator-badge');
+                    if (saveBadge) {
+                        saveBadge.textContent = 'Unsaved Changes';
+                        saveBadge.classList.add('show');
+                    }
+                    return;
+                }
+            }
+            
+            editor.innerHTML += html;
+            editorDirty = true;
+        }
     }
 
     // Public controller exports

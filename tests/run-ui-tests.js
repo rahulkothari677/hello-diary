@@ -692,8 +692,95 @@ async function main() {
             tooltipOpacity = await evaluate('document.getElementById("chart-tooltip").style.opacity');
             console.log('✓ Tooltip hidden after mouseleave (0.0):', tooltipOpacity === '0');
 
+            console.log('\n=== TEST FLOW F: AMBIENT SOUND, STICKERS & CUSTOM THEMES ===');
+
+            console.log('Switching view to Settings tab...');
+            await evaluate('switchDashboardView("settings")');
+            await sleep(500);
+
+            console.log('Testing Theme Scheduler toggles...');
+            let scheduleOptionsHidden = await evaluate('document.getElementById("theme-schedule-options").style.display === "none"');
+            console.log('✓ Schedule options initial hide verified:', scheduleOptionsHidden);
+            
+            // Toggle scheduler checkbox
+            await evaluate('document.getElementById("toggle-theme-schedule").click()');
+            await sleep(300);
+            let scheduleOptionsVisible = await evaluate('document.getElementById("theme-schedule-options").style.display !== "none"');
+            console.log('✓ Schedule options visible on toggle:', scheduleOptionsVisible);
+            if (!scheduleOptionsVisible) throw new Error('Theme scheduler options failed to display.');
+
+            console.log('Creating a Custom Theme named "Neon Sunshine"...');
+            await evaluate(`
+                document.getElementById('custom-theme-name').value = 'Neon Sunshine';
+                document.getElementById('theme-color-accent').value = '#ffff00'; // Yellow
+                document.getElementById('btn-save-custom-theme').click();
+            `);
+            await sleep(800);
+
+            let customThemeSwatchExists = await evaluate('!!document.querySelector(\'.theme-swatch-card[data-theme-id="custom-neon-sunshine"]\')');
+            console.log('✓ Custom theme swatch rendered in gallery:', customThemeSwatchExists);
+            if (!customThemeSwatchExists) throw new Error('Custom theme failed to save or render swatch.');
+
+            // Verify active custom properties
+            let rootAccent = await evaluate('getComputedStyle(document.documentElement).getPropertyValue("--accent").trim()');
+            console.log('✓ Root custom theme accent applied:', rootAccent);
+            if (rootAccent !== '#ffff00' && rootAccent !== 'rgb(255, 255, 0)') {
+                throw new Error('Custom theme accent failed to apply to root. Got: ' + rootAccent);
+            }
+
+            console.log('Verifying Particle Canvas exists...');
+            let canvasExists = await evaluate('!!document.getElementById("theme-particles-canvas")');
+            console.log('✓ Particle canvas verified:', canvasExists);
+            if (!canvasExists) throw new Error('Theme particles canvas is missing from DOM.');
+
+            console.log('Opening Editor to test stickers...');
+            await evaluate('document.getElementById("btn-fab-new-entry").click()');
+            await sleep(500);
+
+            console.log('Toggling Sticker Picker and inserting emoji 🧸...');
+            await evaluate('document.getElementById("btn-sticker-picker").click()');
+            await sleep(300);
+            
+            let stickerPickerActive = await evaluate('document.getElementById("dropdown-sticker").style.display === "block"');
+            console.log('✓ Sticker Picker dropdown is visible:', stickerPickerActive);
+            if (!stickerPickerActive) throw new Error('Sticker picker failed to open.');
+
+            // Click sticker choice
+            await evaluate('document.querySelector(\'.sticker-option[data-sticker="🧸"]\').click()');
+            await sleep(500);
+
+            let hasSticker = await evaluate('!!document.querySelector("#rich-editor-field .diary-sticker-wrapper")');
+            let stickerContent = await evaluate('document.querySelector("#rich-editor-field .diary-sticker-wrapper").textContent');
+            console.log('✓ Sticker successfully inserted into rich editor field:', hasSticker);
+            console.log('✓ Sticker content matches emoji:', stickerContent.includes('🧸'));
+            if (!hasSticker || !stickerContent.includes('🧸')) {
+                throw new Error('Failed to insert sticker emoji into editor.');
+            }
+
+            console.log('Testing Sound Mixer toggles...');
+            // Open editor mixer popover
+            await evaluate('document.getElementById("btn-editor-sound-mixer-toggle").click()');
+            await sleep(300);
+
+            let mixerVisible = await evaluate('document.getElementById("popover-sound-mixer").style.display === "flex"');
+            console.log('✓ Sound Mixer popover active:', mixerVisible);
+            if (!mixerVisible) throw new Error('Sound mixer failed to display.');
+
+            // Toggle ambient audio engine
+            await evaluate('document.getElementById("toggle-ambient-sound").click()');
+            await sleep(300);
+            
+            // Adjust master volume slider
+            await evaluate('document.getElementById("volume-master").value = "0.8"');
+            await evaluate('document.getElementById("volume-master").dispatchEvent(new Event("input"))');
+            await sleep(200);
+
+            // Clean up and save/close editor
+            await evaluate('document.getElementById("btn-editor-back").click()');
+            await sleep(1500);
+
             console.log('\n=============================================================');
-            console.log('🎉 ALL STEP 6 SVG ANALYTICS & INSIGHTS TESTS PASSED! 🎉');
+            console.log('🎉 ALL STEP 7 SOUNDS, STICKERS & CUSTOM THEMES TESTS PASSED! 🎉');
             console.log('=============================================================');
 
             ws.close();
@@ -719,7 +806,7 @@ async function main() {
         console.error('UI Test timeout reached.');
         chrome.kill();
         process.exit(1);
-    }, 45000);
+    }, 60000);
 }
 
 function getWsDebuggerUrl() {

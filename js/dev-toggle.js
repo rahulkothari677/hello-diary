@@ -35,6 +35,23 @@ const THEMES = [
     { id: 'autumn-harvest', name: 'Cozy Autumn', emoji: '🍁', category: 'Nature', accent: '#E05A1F', bg: '#1C0C04', isImage: true }
 ];
 
+function hexToRgba(hex, alpha) {
+    let r = 0, g = 0, b = 0;
+    if (!hex) return `rgba(0, 0, 0, ${alpha})`;
+    if (hex.length === 4) {
+        r = parseInt(hex[1] + hex[1], 16);
+        g = parseInt(hex[2] + hex[2], 16);
+        b = parseInt(hex[3] + hex[3], 16);
+    } else if (hex.length === 7) {
+        r = parseInt(hex.substring(1, 3), 16);
+        g = parseInt(hex.substring(3, 5), 16);
+        b = parseInt(hex.substring(5, 7), 16);
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+window.hexToRgba = hexToRgba;
+window.THEMES = THEMES;
+
 // Switch Theme functionality
 function applyTheme(themeId) {
     const theme = THEMES.find(t => t.id === themeId);
@@ -42,6 +59,34 @@ function applyTheme(themeId) {
     
     document.documentElement.setAttribute('data-theme', themeId);
     localStorage.setItem('hello-diary-theme', themeId);
+    
+    // Custom theme variables support
+    const root = document.documentElement;
+    if (theme.colors) {
+        root.style.setProperty('--bg-primary', theme.colors.primary);
+        root.style.setProperty('--bg-secondary', theme.colors.secondary);
+        root.style.setProperty('--text-primary', theme.colors.text);
+        root.style.setProperty('--accent', theme.colors.accent);
+        root.style.setProperty('--bg-card', hexToRgba(theme.colors.primary, 0.82));
+        root.style.setProperty('--bg-card-hover', hexToRgba(theme.colors.primary, 0.95));
+        root.style.setProperty('--accent-soft', hexToRgba(theme.colors.accent, 0.12));
+        root.style.setProperty('--accent-glow', hexToRgba(theme.colors.accent, 0.3));
+        root.style.setProperty('--glass-bg', hexToRgba(theme.colors.primary, 0.65));
+        root.style.setProperty('--text-secondary', hexToRgba(theme.colors.text, 0.7));
+        root.style.setProperty('--text-muted', hexToRgba(theme.colors.text, 0.5));
+    } else {
+        root.style.removeProperty('--bg-primary');
+        root.style.removeProperty('--bg-secondary');
+        root.style.removeProperty('--text-primary');
+        root.style.removeProperty('--accent');
+        root.style.removeProperty('--bg-card');
+        root.style.removeProperty('--bg-card-hover');
+        root.style.removeProperty('--accent-soft');
+        root.style.removeProperty('--accent-glow');
+        root.style.removeProperty('--glass-bg');
+        root.style.removeProperty('--text-secondary');
+        root.style.removeProperty('--text-muted');
+    }
     
     // Update theme-color metadata
     const meta = document.querySelector('meta[name="theme-color"]');
@@ -53,6 +98,11 @@ function applyTheme(themeId) {
     });
     
     console.log(`Switched to Theme: ${theme.name}`);
+
+    // Update particle layers
+    if (window.HelloParticles) {
+        window.HelloParticles.updateTheme(themeId);
+    }
 }
 
 // Populate Theme Gallery

@@ -1250,3 +1250,79 @@
     transition: width 0.8s cubic-bezier(0.1, 0.8, 0.2, 1);
 }
 
+/* --- Step 7 Additions: Stickers, Sound Mixer, Particle Animations --- */
+
+/* Sticker elements inside editor */
+.diary-sticker-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 4px;
+    padding: 6px;
+    border: 1.5px dashed transparent;
+    border-radius: var(--radius-md);
+    cursor: grab;
+    user-select: none;
+    font-size: 2.2rem;
+    line-height: 1;
+    vertical-align: middle;
+    transition: border-color var(--transition-fast) ease, background-color var(--transition-fast) ease;
+}
+
+.diary-sticker-wrapper:hover {
+    border-color: var(--accent);
+    background-color: var(--accent-soft);
+}
+
+.sticker-delete-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-size: 10px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    z-index: 10;
+}
+
+.diary-sticker-wrapper:hover .sticker-delete-btn {
+    display: flex;
+}
+
+/* Sound mixer range sliders */
+#popover-sound-mixer input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.12);
+    outline: none;
+    transition: background var(--transition-fast);
+}
+
+#popover-sound-mixer input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-fast);
+}
+
+#popover-sound-mixer input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.18);
+}
+
+
