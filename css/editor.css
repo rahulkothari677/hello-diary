@@ -1,0 +1,384 @@
+/* ==========================================================================
+   Hello Diary — Editor Stylesheet
+   Styles for the fullscreen rich text editor, formatting toolbar, mood selectors,
+   tags panel, selectable writing fonts, and focus/zen modes.
+   ========================================================================== */
+
+/* --- Screen Layout --- */
+.screen--editor {
+    display: none;
+    z-index: 500; /* Overlays the dashboard completely */
+    background: var(--bg-primary);
+    background-image: var(--theme-image);
+    background-size: cover;
+    background-position: center;
+}
+
+.screen--editor::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--theme-overlay); /* Adapts to light/dark themes without blurring the image */
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* Editor Header */
+.editor-topbar {
+    height: var(--topbar-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--space-md);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.editor-topbar-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-primary);
+    padding: 8px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.editor-topbar-btn:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.editor-topbar-btn--danger:hover {
+    background: rgba(239, 68, 68, 0.08);
+    color: #EF4444;
+}
+
+.editor-topbar-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.editor-date {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.save-indicator {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.save-indicator.show {
+    opacity: 1;
+}
+
+/* --- Mood Selector Panel --- */
+.mood-selector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-md) var(--space-md) var(--space-sm);
+}
+
+.mood-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.mood-picker {
+    display: flex;
+    gap: var(--space-md);
+}
+
+.mood-btn {
+    background: transparent;
+    border: 2px solid transparent;
+    font-size: 1.6rem;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: var(--radius-full);
+    transition: all var(--spring-transition);
+}
+
+.mood-btn:hover {
+    transform: scale(1.25);
+}
+
+.mood-btn.selected {
+    transform: scale(1.3);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+/* --- Tags Management Panel --- */
+.tags-area {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    padding: 0 var(--space-md) var(--space-md);
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.entry-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+}
+
+.tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.tag-remove {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: 1.1rem;
+    cursor: pointer;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-tag-btn {
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--text-secondary);
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.add-tag-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+/* --- Rich Text Formatting Toolbar --- */
+.editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 6px 12px;
+    background: var(--glass-bg);
+    border-top: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    overflow-x: auto;
+    white-space: nowrap;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.toolbar-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-primary);
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-family: inherit;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.toolbar-btn:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.toolbar-btn.active {
+    background: var(--accent);
+    color: #FFFFFF;
+}
+
+.toolbar-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    margin: 0 var(--space-xs);
+}
+
+/* --- Editor Core Writing Body --- */
+.editor-body-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-md) var(--space-md) var(--space-xl);
+    display: flex;
+    justify-content: center;
+}
+
+.editor-content {
+    width: 100%;
+    max-width: 720px; /* Golden size for text readability */
+    min-height: 200px;
+    outline: none;
+    color: var(--text-primary);
+    transition: font-size 0.2s, font-family 0.2s;
+    line-height: 1.8;
+}
+
+/* Selected fonts in action */
+.editor-content.font-merriweather { font-family: 'Merriweather', Georgia, serif; }
+.editor-content.font-lora { font-family: 'Lora', serif; }
+.editor-content.font-inter { font-family: 'Inter', sans-serif; }
+.editor-content.font-caveat { font-family: 'Caveat', cursive; font-size: 1.35em !important; }
+.editor-content.font-dancing { font-family: 'Dancing Script', cursive; font-size: 1.35em !important; }
+.editor-content.font-pacifico { font-family: 'Pacifico', cursive; font-size: 1.25em !important; }
+.editor-content.font-mono { font-family: 'JetBrains Mono', monospace; font-size: 0.9em !important; }
+
+/* Font size modifiers */
+.editor-content.size-small { font-size: 0.9rem; }
+.editor-content.size-medium { font-size: 1.1rem; }
+.editor-content.size-large { font-size: 1.3rem; }
+.editor-content.size-xlarge { font-size: 1.5rem; }
+
+/* Placeholder for contenteditable */
+.editor-content:empty::before {
+    content: attr(data-placeholder);
+    color: var(--text-muted);
+    cursor: text;
+    pointer-events: none;
+    font-style: italic;
+}
+
+/* Rich text tags rendering */
+.editor-content h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.85em;
+    font-weight: 700;
+    margin: 0.8em 0 0.4em;
+    line-height: 1.25;
+}
+
+.editor-content h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.45em;
+    font-weight: 600;
+    margin: 0.8em 0 0.4em;
+}
+
+.editor-content h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.2em;
+    font-weight: 600;
+    margin: 0.8em 0 0.4em;
+}
+
+.editor-content p {
+    margin-bottom: 1em;
+}
+
+.editor-content blockquote {
+    border-left: 4px solid var(--accent);
+    padding-left: var(--space-md);
+    color: var(--text-secondary);
+    font-style: italic;
+    margin: 1.2em 0;
+    background: var(--accent-soft);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.editor-content ul, .editor-content ol {
+    margin-left: var(--space-xl);
+    margin-bottom: 1em;
+}
+
+.editor-content li {
+    margin-bottom: 0.3em;
+}
+
+.editor-content img {
+    max-width: 100%;
+    border-radius: var(--radius-md);
+    margin: 1em 0;
+    box-shadow: var(--shadow-md);
+}
+
+.editor-content hr {
+    border: none;
+    height: 1px;
+    background: var(--border);
+    margin: 2em 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.editor-content hr::before {
+    content: '✦  ✦  ✦';
+    background: var(--bg-primary);
+    padding: 0 16px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    letter-spacing: 4px;
+}
+
+/* --- Focus Mode (Dim other elements) --- */
+.screen--editor.focus-mode .mood-selector,
+.screen--editor.focus-mode .tags-area,
+.screen--editor.focus-mode .editor-topbar,
+.screen--editor.focus-mode .editor-toolbar,
+.screen--editor.focus-mode .editor-footer {
+    opacity: 0.08;
+    transition: opacity 0.3s ease;
+}
+
+.screen--editor.focus-mode .mood-selector:hover,
+.screen--editor.focus-mode .tags-area:hover,
+.screen--editor.focus-mode .editor-topbar:hover,
+.screen--editor.focus-mode .editor-toolbar:hover,
+.screen--editor.focus-mode .editor-footer:hover {
+    opacity: 1;
+}
+
+/* --- Editor Footer Stats --- */
+.editor-footer {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    border-top: 1px solid var(--border-light);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.editor-stat-divider {
+    color: var(--text-muted);
+}

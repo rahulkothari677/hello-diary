@@ -1,0 +1,698 @@
+/* ==========================================================================
+   Hello Diary — Themes Stylesheet
+   Defines the palettes, custom background images, overlays, and color system
+   tokens for all 24 premium themes.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Default / Shared Theme Variable Values (Fallback Theme: Serene Dawn)
+   -------------------------------------------------------------------------- */
+:root, [data-theme="serene-dawn"] {
+    --bg-primary: #FAFAF8;
+    --bg-secondary: #F0EDE8;
+    --bg-card: rgba(255, 255, 255, 0.82);
+    --bg-card-hover: rgba(255, 255, 255, 0.95);
+    --text-primary: #1F2232;
+    --text-secondary: #5C627A;
+    --text-muted: #8E95AF;
+    --accent: #6B7FD7;
+    --accent-hover: #5A6DC6;
+    --accent-soft: rgba(107, 127, 215, 0.12);
+    --accent-glow: rgba(107, 127, 215, 0.3);
+    --border: rgba(128, 128, 128, 0.12);
+    --border-light: rgba(128, 128, 128, 0.06);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+    --glass-bg: rgba(255, 255, 255, 0.65);
+    --glass-border: rgba(255, 255, 255, 0.3);
+    
+    /* Mood scales: awful, bad, okay, good, great */
+    --mood-1: #EF4444; 
+    --mood-2: #F97316; 
+    --mood-3: #F59E0B; 
+    --mood-4: #10B981; 
+    --mood-5: #059669;
+    
+    /* Aurora orb colors */
+    --aurora-1: rgba(107, 127, 215, 0.2);
+    --aurora-2: rgba(168, 135, 235, 0.18);
+    --aurora-3: rgba(110, 200, 220, 0.15);
+    
+    --theme-image: url(../images/themes/serene-dawn.png);
+    --theme-overlay: rgba(250, 250, 248, 0.1);
+}
+
+/* --------------------------------------------------------------------------
+   ORIGINAL THEMES (15 remaining)
+   -------------------------------------------------------------------------- */
+
+/* 2. MIDNIGHT ABYSS — Deep night dark */
+[data-theme="midnight-abyss"] {
+    --bg-primary: #0A0C16;
+    --bg-secondary: #121424;
+    --bg-card: rgba(20, 22, 40, 0.75);
+    --bg-card-hover: rgba(26, 28, 52, 0.88);
+    --text-primary: #E6E8F4;
+    --text-secondary: #9FA4C4;
+    --text-muted: #6B719A;
+    --accent: #9D7CFC;
+    --accent-hover: #8661E8;
+    --accent-soft: rgba(157, 124, 252, 0.15);
+    --accent-glow: rgba(157, 124, 252, 0.35);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.55);
+    --glass-bg: rgba(15, 17, 33, 0.65);
+    --glass-border: rgba(255, 255, 255, 0.06);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #F59E0B; --mood-4: #34D399; --mood-5: #10B981;
+    --aurora-1: rgba(157, 124, 252, 0.22);
+    --aurora-2: rgba(131, 96, 230, 0.18);
+    --aurora-3: rgba(85, 50, 200, 0.12);
+    --theme-image: url(../images/themes/midnight-abyss.png);
+    --theme-overlay: rgba(10, 12, 22, 0.35);
+}
+
+/* 3. AURORA BOREALIS — Glowing mint cosmos dark */
+[data-theme="aurora-borealis"] {
+    --bg-primary: #0A1124;
+    --bg-secondary: #101935;
+    --bg-card: rgba(18, 28, 56, 0.72);
+    --bg-card-hover: rgba(24, 38, 75, 0.85);
+    --text-primary: #E0FAF5;
+    --text-secondary: #8BE2D0;
+    --text-muted: #53AFA0;
+    --accent: #52FFD3;
+    --accent-hover: #3DE6BD;
+    --accent-soft: rgba(82, 255, 211, 0.12);
+    --accent-glow: rgba(82, 255, 211, 0.3);
+    --border: rgba(82, 255, 211, 0.1);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(10, 17, 36, 0.6);
+    --glass-border: rgba(82, 255, 211, 0.07);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #F59E0B; --mood-4: #34D399; --mood-5: #10B981;
+    --aurora-1: rgba(82, 255, 211, 0.2);
+    --aurora-2: rgba(30, 200, 160, 0.15);
+    --aurora-3: rgba(10, 100, 200, 0.12);
+    --theme-image: url(../images/themes/aurora-borealis.png);
+    --theme-overlay: rgba(10, 17, 36, 0.3);
+}
+
+/* 4. SAKURA GARDEN — Gentle pink floral */
+[data-theme="sakura-garden"] {
+    --bg-primary: #FFF2F4;
+    --bg-secondary: #FFE0E5;
+    --bg-card: rgba(255, 255, 255, 0.88);
+    --bg-card-hover: rgba(255, 255, 255, 0.96);
+    --text-primary: #4A1E26;
+    --text-secondary: #A05262;
+    --text-muted: #D0909D;
+    --accent: #FA6082;
+    --accent-hover: #E2486A;
+    --accent-soft: rgba(250, 96, 130, 0.12);
+    --accent-glow: rgba(250, 96, 130, 0.25);
+    --border: rgba(250, 96, 130, 0.1);
+    --border-light: rgba(250, 96, 130, 0.05);
+    --shadow-sm: 0 1px 3px rgba(74, 30, 38, 0.05);
+    --shadow-md: 0 4px 16px rgba(74, 30, 38, 0.08);
+    --shadow-lg: 0 12px 40px rgba(74, 30, 38, 0.12);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(250, 96, 130, 0.15);
+    --mood-1: #E11D48; --mood-2: #F43F5E; --mood-3: #FB7185; --mood-4: #4ADE80; --mood-5: #10B981;
+    --aurora-1: rgba(250, 96, 130, 0.16);
+    --aurora-2: rgba(253, 164, 186, 0.12);
+    --aurora-3: rgba(254, 219, 228, 0.1);
+    --theme-image: url(../images/themes/sakura-garden.png);
+    --theme-overlay: rgba(255, 242, 244, 0.2);
+}
+
+/* 5. FOREST SANCTUARY — Earthy warm green nature */
+[data-theme="forest-sanctuary"] {
+    --bg-primary: #F4F6F0;
+    --bg-secondary: #E5E9DC;
+    --bg-card: rgba(255, 255, 255, 0.85);
+    --bg-card-hover: rgba(255, 255, 255, 0.95);
+    --text-primary: #1E2E20;
+    --text-secondary: #506652;
+    --text-muted: #849C87;
+    --accent: #438A5E;
+    --accent-hover: #36734D;
+    --accent-soft: rgba(67, 138, 94, 0.12);
+    --accent-glow: rgba(67, 138, 94, 0.25);
+    --border: rgba(67, 138, 94, 0.1);
+    --border-light: rgba(67, 138, 94, 0.05);
+    --shadow-sm: 0 1px 3px rgba(30, 46, 32, 0.05);
+    --shadow-md: 0 4px 16px rgba(30, 46, 32, 0.08);
+    --shadow-lg: 0 12px 40px rgba(30, 46, 32, 0.12);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(67, 138, 94, 0.15);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #D97706; --mood-4: #438A5E; --mood-5: #2F6644;
+    --aurora-1: rgba(67, 138, 94, 0.16);
+    --aurora-2: rgba(144, 185, 160, 0.12);
+    --aurora-3: rgba(210, 224, 215, 0.1);
+    --theme-image: url(../images/themes/forest-sanctuary.png);
+    --theme-overlay: rgba(244, 246, 240, 0.2);
+}
+
+/* 6. OCEAN DEPTHS — Deep blue oceanic dark */
+[data-theme="ocean-depths"] {
+    --bg-primary: #050E1A;
+    --bg-secondary: #0A1B30;
+    --bg-card: rgba(8, 24, 46, 0.78);
+    --bg-card-hover: rgba(12, 34, 64, 0.9);
+    --text-primary: #E2ECF7;
+    --text-secondary: #8BA8CC;
+    --text-muted: #5879A3;
+    --accent: #3EC5EC;
+    --accent-hover: #26B0D8;
+    --accent-soft: rgba(62, 197, 236, 0.14);
+    --accent-glow: rgba(62, 197, 236, 0.35);
+    --border: rgba(62, 197, 236, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(5, 14, 26, 0.65);
+    --glass-border: rgba(62, 197, 236, 0.07);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #F59E0B; --mood-4: #34D399; --mood-5: #10B981;
+    --aurora-1: rgba(62, 197, 236, 0.2);
+    --aurora-2: rgba(20, 110, 180, 0.15);
+    --aurora-3: rgba(10, 60, 120, 0.12);
+    --theme-image: url(../images/themes/ocean-depths.png);
+    --theme-overlay: rgba(5, 14, 26, 0.3);
+}
+
+/* 7. GOLDEN HOUR — Sunset twilight dark */
+[data-theme="golden-hour"] {
+    --bg-primary: #150F0B;
+    --bg-secondary: #241A13;
+    --bg-card: rgba(30, 22, 17, 0.76);
+    --bg-card-hover: rgba(38, 28, 22, 0.88);
+    --text-primary: #FCECE0;
+    --text-secondary: #C8AC9A;
+    --text-muted: #8E7A6B;
+    --accent: #E58C3D;
+    --accent-hover: #CC7328;
+    --accent-soft: rgba(229, 140, 61, 0.15);
+    --accent-glow: rgba(229, 140, 61, 0.35);
+    --border: rgba(229, 140, 61, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(21, 15, 11, 0.65);
+    --glass-border: rgba(229, 140, 61, 0.07);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #F59E0B; --mood-4: #E58C3D; --mood-5: #C2410C;
+    --aurora-1: rgba(229, 140, 61, 0.22);
+    --aurora-2: rgba(190, 80, 40, 0.18);
+    --aurora-3: rgba(100, 50, 20, 0.12);
+    --theme-image: url(../images/themes/golden-hour.png);
+    --theme-overlay: rgba(21, 15, 11, 0.35);
+}
+
+/* 8. LAVENDER DREAM — Pastel purple soft */
+[data-theme="lavender-dream"] {
+    --bg-primary: #F6F4FB;
+    --bg-secondary: #EBE5F5;
+    --bg-card: rgba(255, 255, 255, 0.85);
+    --bg-card-hover: rgba(255, 255, 255, 0.95);
+    --text-primary: #2C2240;
+    --text-secondary: #705D91;
+    --text-muted: #9F8EB9;
+    --accent: #8E65DC;
+    --accent-hover: #784EC4;
+    --accent-soft: rgba(142, 101, 220, 0.12);
+    --accent-glow: rgba(142, 101, 220, 0.25);
+    --border: rgba(142, 101, 220, 0.1);
+    --border-light: rgba(142, 101, 220, 0.05);
+    --shadow-sm: 0 1px 3px rgba(44, 34, 64, 0.05);
+    --shadow-md: 0 4px 16px rgba(44, 34, 64, 0.08);
+    --shadow-lg: 0 12px 40px rgba(44, 34, 64, 0.12);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(142, 101, 220, 0.15);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #8E65DC; --mood-4: #4ADE80; --mood-5: #10B981;
+    --aurora-1: rgba(142, 101, 220, 0.16);
+    --aurora-2: rgba(188, 160, 235, 0.12);
+    --aurora-3: rgba(226, 215, 245, 0.1);
+    --theme-image: url(../images/themes/lavender-dream.png);
+    --theme-overlay: rgba(246, 244, 251, 0.2);
+}
+
+/* 9. COSMIC UNIVERSE — Celestial galaxy deep dark */
+[data-theme="cosmic-universe"] {
+    --bg-primary: #050410;
+    --bg-secondary: #0B0A21;
+    --bg-card: rgba(10, 8, 30, 0.75);
+    --bg-card-hover: rgba(16, 13, 44, 0.88);
+    --text-primary: #E9E8FC;
+    --text-secondary: #9793C2;
+    --text-muted: #645F8E;
+    --accent: #765CFE;
+    --accent-hover: #5D43E3;
+    --accent-soft: rgba(118, 92, 254, 0.15);
+    --accent-glow: rgba(118, 92, 254, 0.35);
+    --border: rgba(118, 92, 254, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.65);
+    --glass-bg: rgba(5, 4, 16, 0.65);
+    --glass-border: rgba(118, 92, 254, 0.07);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #F59E0B; --mood-4: #34D399; --mood-5: #10B981;
+    --aurora-1: rgba(118, 92, 254, 0.25);
+    --aurora-2: rgba(186, 85, 211, 0.18);
+    --aurora-3: rgba(30, 144, 255, 0.15);
+    --theme-image: url(../images/themes/cosmic-universe.png);
+    --theme-overlay: rgba(5, 4, 16, 0.4);
+}
+
+/* 10. SPORTS ARENA — Energizing blood red dark */
+[data-theme="sports-arena"] {
+    --bg-primary: #120505;
+    --bg-secondary: #210909;
+    --bg-card: rgba(28, 10, 10, 0.76);
+    --bg-card-hover: rgba(36, 14, 14, 0.88);
+    --text-primary: #FDECEB;
+    --text-secondary: #C8ABAB;
+    --text-muted: #8E7A7A;
+    --accent: #E53E3E;
+    --accent-hover: #C53030;
+    --accent-soft: rgba(229, 62, 62, 0.15);
+    --accent-glow: rgba(229, 62, 62, 0.35);
+    --border: rgba(229, 62, 62, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(18, 5, 5, 0.65);
+    --glass-border: rgba(229, 62, 62, 0.07);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #F59E0B; --mood-4: #E53E3E; --mood-5: #9B2C2C;
+    --aurora-1: rgba(229, 62, 62, 0.22);
+    --aurora-2: rgba(150, 40, 40, 0.18);
+    --aurora-3: rgba(80, 20, 20, 0.12);
+    --theme-image: url(../images/themes/sports-arena.png);
+    --theme-overlay: rgba(18, 5, 5, 0.35);
+}
+
+/* 11. ANIMAL KINGDOM — Warm savanna gold dark */
+[data-theme="animal-kingdom"] {
+    --bg-primary: #140E05;
+    --bg-secondary: #22180A;
+    --bg-card: rgba(30, 22, 12, 0.76);
+    --bg-card-hover: rgba(38, 28, 16, 0.88);
+    --text-primary: #FDF1DE;
+    --text-secondary: #C8B9A6;
+    --text-muted: #8E8272;
+    --accent: #CE9C4B;
+    --accent-hover: #B48436;
+    --accent-soft: rgba(206, 156, 75, 0.15);
+    --accent-glow: rgba(206, 156, 75, 0.35);
+    --border: rgba(206, 156, 75, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(20, 14, 5, 0.65);
+    --glass-border: rgba(206, 156, 75, 0.07);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #F59E0B; --mood-4: #CE9C4B; --mood-5: #9C702E;
+    --aurora-1: rgba(206, 156, 75, 0.22);
+    --aurora-2: rgba(160, 100, 40, 0.18);
+    --aurora-3: rgba(90, 60, 20, 0.12);
+    --theme-image: url(../images/themes/animal-kingdom.png);
+    --theme-overlay: rgba(20, 14, 5, 0.35);
+}
+
+/* 12. LOVE & ROMANCE — Vibrant rose pink */
+[data-theme="love-romance"] {
+    --bg-primary: #FFF0F2;
+    --bg-secondary: #FFE0E4;
+    --bg-card: rgba(255, 255, 255, 0.88);
+    --bg-card-hover: rgba(255, 255, 255, 0.96);
+    --text-primary: #4A121F;
+    --text-secondary: #A04A5D;
+    --text-muted: #D08796;
+    --accent: #E52F5A;
+    --accent-hover: #C52249;
+    --accent-soft: rgba(229, 47, 90, 0.12);
+    --accent-glow: rgba(229, 47, 90, 0.25);
+    --border: rgba(229, 47, 90, 0.1);
+    --border-light: rgba(229, 47, 90, 0.05);
+    --shadow-sm: 0 1px 3px rgba(74, 18, 31, 0.05);
+    --shadow-md: 0 4px 16px rgba(74, 18, 31, 0.08);
+    --shadow-lg: 0 12px 40px rgba(74, 18, 31, 0.12);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(229, 47, 90, 0.15);
+    --mood-1: #BE123C; --mood-2: #E11D48; --mood-3: #F43F5E; --mood-4: #FDA4AF; --mood-5: #E52F5A;
+    --aurora-1: rgba(229, 47, 90, 0.16);
+    --aurora-2: rgba(253, 164, 186, 0.12);
+    --aurora-3: rgba(254, 220, 226, 0.1);
+    --theme-image: url(../images/themes/love-romance.png);
+    --theme-overlay: rgba(255, 240, 242, 0.2);
+}
+
+/* 13. FUTURISTIC NEON — Cyberpunk cyan dark */
+[data-theme="futuristic-neon"] {
+    --bg-primary: #03040C;
+    --bg-secondary: #0A0D1E;
+    --bg-card: rgba(6, 8, 22, 0.76);
+    --bg-card-hover: rgba(10, 14, 34, 0.88);
+    --text-primary: #D7F9FF;
+    --text-secondary: #74BFD0;
+    --text-muted: #4A8E9E;
+    --accent: #00E5FF;
+    --accent-hover: #00B3CC;
+    --accent-soft: rgba(0, 229, 255, 0.15);
+    --accent-glow: rgba(0, 229, 255, 0.35);
+    --border: rgba(0, 229, 255, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.65);
+    --glass-bg: rgba(3, 4, 12, 0.65);
+    --glass-border: rgba(0, 229, 255, 0.07);
+    --mood-1: #FF0055; --mood-2: #FF5500; --mood-3: #FFFF00; --mood-4: #00FF55; --mood-5: #00E5FF;
+    --aurora-1: rgba(0, 229, 255, 0.25);
+    --aurora-2: rgba(255, 0, 128, 0.18);
+    --aurora-3: rgba(128, 0, 255, 0.15);
+    --theme-image: url(../images/themes/futuristic-neon.png);
+    --theme-overlay: rgba(3, 4, 12, 0.4);
+}
+
+/* 14. IMAGINATION — Whimsical teal dark */
+[data-theme="imagination"] {
+    --bg-primary: #080D16;
+    --bg-secondary: #0E1724;
+    --bg-card: rgba(12, 21, 34, 0.76);
+    --bg-card-hover: rgba(18, 30, 48, 0.88);
+    --text-primary: #E0FAF5;
+    --text-secondary: #8BCAC2;
+    --text-muted: #59978F;
+    --accent: #2FC3B2;
+    --accent-hover: #23A092;
+    --accent-soft: rgba(47, 195, 178, 0.15);
+    --accent-glow: rgba(47, 195, 178, 0.35);
+    --border: rgba(47, 195, 178, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(8, 13, 22, 0.65);
+    --glass-border: rgba(47, 195, 178, 0.07);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #F59E0B; --mood-4: #2FC3B2; --mood-5: #1C8276;
+    --aurora-1: rgba(47, 195, 178, 0.22);
+    --aurora-2: rgba(186, 85, 211, 0.18);
+    --aurora-3: rgba(30, 144, 255, 0.15);
+    --theme-image: url(../images/themes/imagination.png);
+    --theme-overlay: rgba(8, 13, 22, 0.35);
+}
+
+/* 15. MOUNTAIN PEAK — Ice blue light */
+[data-theme="mountain-peak"] {
+    --bg-primary: #EFF4F8;
+    --bg-secondary: #DFE7EF;
+    --bg-card: rgba(255, 255, 255, 0.85);
+    --bg-card-hover: rgba(255, 255, 255, 0.95);
+    --text-primary: #1C2B3E;
+    --text-secondary: #586B82;
+    --text-muted: #8EA1B9;
+    --accent: #4A90D9;
+    --accent-hover: #377CC4;
+    --accent-soft: rgba(74, 144, 217, 0.12);
+    --accent-glow: rgba(74, 144, 217, 0.25);
+    --border: rgba(74, 144, 217, 0.10);
+    --border-light: rgba(74, 144, 217, 0.05);
+    --shadow-sm: 0 1px 3px rgba(28, 43, 62, 0.05);
+    --shadow-md: 0 4px 16px rgba(28, 43, 62, 0.08);
+    --shadow-lg: 0 12px 40px rgba(28, 43, 62, 0.12);
+    --glass-bg: rgba(255, 255, 255, 0.65);
+    --glass-border: rgba(74, 144, 217, 0.15);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #F59E0B; --mood-4: #4A90D9; --mood-5: #2C69AB;
+    --aurora-1: rgba(74, 144, 217, 0.16);
+    --aurora-2: rgba(142, 188, 235, 0.12);
+    --aurora-3: rgba(210, 228, 245, 0.1);
+    --theme-image: url(../images/themes/mountain-peak.png);
+    --theme-overlay: rgba(239, 244, 248, 0.2);
+}
+
+/* 16. RAINY DAY — Overcast stormy dark */
+[data-theme="rainy-day"] {
+    --bg-primary: #13171F;
+    --bg-secondary: #1D232E;
+    --bg-card: rgba(24, 30, 42, 0.76);
+    --bg-card-hover: rgba(32, 40, 56, 0.88);
+    --text-primary: #E2E8F0;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --accent: #6E9EBA;
+    --accent-hover: #5484A0;
+    --accent-soft: rgba(110, 158, 186, 0.15);
+    --accent-glow: rgba(110, 158, 186, 0.35);
+    --border: rgba(110, 158, 186, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(19, 23, 31, 0.65);
+    --glass-border: rgba(110, 158, 186, 0.07);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #F59E0B; --mood-4: #6E9EBA; --mood-5: #40718C;
+    --aurora-1: rgba(110, 158, 186, 0.22);
+    --aurora-2: rgba(70, 100, 120, 0.18);
+    --aurora-3: rgba(40, 60, 80, 0.12);
+    --theme-image: url(../images/themes/rainy-day.png);
+    --theme-overlay: rgba(19, 23, 31, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   NEW THEMES (8 themes)
+   Using elegant CSS background gradients and modern visual leaks
+   -------------------------------------------------------------------------- */
+
+/* 17. VINTAGE TYPEWRITER — Sepia retro classic */
+[data-theme="vintage-typewriter"] {
+    --bg-primary: #F4EFE6;
+    --bg-secondary: #EADFC9;
+    --bg-card: rgba(255, 254, 250, 0.85);
+    --bg-card-hover: rgba(255, 255, 255, 0.95);
+    --text-primary: #3E2F20;
+    --text-secondary: #7D6B58;
+    --text-muted: #AC9B87;
+    --accent: #8A5A36;
+    --accent-hover: #724627;
+    --accent-soft: rgba(138, 90, 54, 0.12);
+    --accent-glow: rgba(138, 90, 54, 0.25);
+    --border: rgba(138, 90, 54, 0.1);
+    --border-light: rgba(138, 90, 54, 0.05);
+    --shadow-sm: 0 1px 3px rgba(62, 47, 32, 0.06);
+    --shadow-md: 0 4px 16px rgba(62, 47, 32, 0.08);
+    --shadow-lg: 0 12px 40px rgba(62, 47, 32, 0.12);
+    --glass-bg: rgba(255, 254, 250, 0.7);
+    --glass-border: rgba(138, 90, 54, 0.15);
+    --mood-1: #B91C1C; --mood-2: #EA580C; --mood-3: #D97706; --mood-4: #8A5A36; --mood-5: #5C3D24;
+    --aurora-1: rgba(138, 90, 54, 0.12);
+    --aurora-2: rgba(230, 215, 185, 0.15);
+    --aurora-3: rgba(244, 238, 225, 0.1);
+    --theme-image: url(../images/themes/vintage-typewriter.png);
+    --theme-overlay: rgba(244, 239, 230, 0.25);
+}
+
+/* 18. CHERRY BLOSSOM NIGHT — Lunar plum and soft pink */
+[data-theme="cherry-blossom-night"] {
+    --bg-primary: #1C0A15;
+    --bg-secondary: #2C1222;
+    --bg-card: rgba(35, 15, 28, 0.76);
+    --bg-card-hover: rgba(45, 20, 36, 0.88);
+    --text-primary: #FFE6F4;
+    --text-secondary: #DCA9C6;
+    --text-muted: #9F6E8C;
+    --accent: #FF85C8;
+    --accent-hover: #E268AC;
+    --accent-soft: rgba(255, 133, 200, 0.15);
+    --accent-glow: rgba(255, 133, 200, 0.35);
+    --border: rgba(255, 133, 200, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.65);
+    --glass-bg: rgba(28, 10, 21, 0.65);
+    --glass-border: rgba(255, 133, 200, 0.07);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #FF85C8; --mood-4: #34D399; --mood-5: #10B981;
+    --aurora-1: rgba(255, 133, 200, 0.22);
+    --aurora-2: rgba(139, 10, 80, 0.18);
+    --aurora-3: rgba(218, 165, 32, 0.1);
+    --theme-image: url(../images/themes/cherry-blossom-night.png);
+    --theme-overlay: rgba(28, 10, 21, 0.3);
+}
+
+/* 19. ARCTIC AURORA — Electric mint ice cold */
+[data-theme="arctic-aurora"] {
+    --bg-primary: #040E1B;
+    --bg-secondary: #0A1C30;
+    --bg-card: rgba(10, 28, 48, 0.74);
+    --bg-card-hover: rgba(15, 38, 64, 0.86);
+    --text-primary: #E6F5FC;
+    --text-secondary: #90C4DE;
+    --text-muted: #5B8BA3;
+    --accent: #00FF9D;
+    --accent-hover: #00E089;
+    --accent-soft: rgba(0, 255, 157, 0.12);
+    --accent-glow: rgba(0, 255, 157, 0.3);
+    --border: rgba(0, 255, 157, 0.1);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(4, 14, 27, 0.65);
+    --glass-border: rgba(0, 255, 157, 0.07);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #F59E0B; --mood-4: #00FF9D; --mood-5: #00C77B;
+    --aurora-1: rgba(0, 255, 157, 0.22);
+    --aurora-2: rgba(0, 191, 255, 0.18);
+    --aurora-3: rgba(240, 248, 255, 0.1);
+    --theme-image: url(../images/themes/arctic-aurora.png);
+    --theme-overlay: rgba(4, 14, 27, 0.2);
+}
+
+/* 20. TROPICAL PARADISE — Warm teal and sunset coral */
+[data-theme="tropical-paradise"] {
+    --bg-primary: #091B24;
+    --bg-secondary: #0F2D3C;
+    --bg-card: rgba(15, 45, 60, 0.76);
+    --bg-card-hover: rgba(20, 56, 75, 0.88);
+    --text-primary: #E2FAFC;
+    --text-secondary: #8ECAD0;
+    --text-muted: #5997A0;
+    --accent: #FF6F59;
+    --accent-hover: #E85B46;
+    --accent-soft: rgba(255, 111, 89, 0.15);
+    --accent-glow: rgba(255, 111, 89, 0.35);
+    --border: rgba(255, 111, 89, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(9, 27, 36, 0.65);
+    --glass-border: rgba(255, 111, 89, 0.07);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #FF6F59; --mood-4: #4ECDC4; --mood-5: #1A938C;
+    --aurora-1: rgba(255, 111, 89, 0.22);
+    --aurora-2: rgba(78, 205, 196, 0.18);
+    --aurora-3: rgba(255, 224, 102, 0.1);
+    --theme-image: url(../images/themes/tropical-paradise.png);
+    --theme-overlay: rgba(9, 27, 36, 0.25);
+}
+
+/* 21. STEAMPUNK — Aged copper and warm brass */
+[data-theme="steampunk"] {
+    --bg-primary: #191410;
+    --bg-secondary: #2B211A;
+    --bg-card: rgba(43, 33, 26, 0.76);
+    --bg-card-hover: rgba(53, 41, 32, 0.88);
+    --text-primary: #F2E4D8;
+    --text-secondary: #C4AD9A;
+    --text-muted: #8F7B6B;
+    --accent: #D4AF37;
+    --accent-hover: #B8962D;
+    --accent-soft: rgba(212, 175, 55, 0.15);
+    --accent-glow: rgba(212, 175, 55, 0.35);
+    --border: rgba(212, 175, 55, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(25, 20, 16, 0.65);
+    --glass-border: rgba(212, 175, 55, 0.07);
+    --mood-1: #A52A2A; --mood-2: #D2691E; --mood-3: #D4AF37; --mood-4: #CD853F; --mood-5: #8B4513;
+    --aurora-1: rgba(212, 175, 55, 0.2);
+    --aurora-2: rgba(184, 115, 51, 0.15);
+    --aurora-3: rgba(139, 69, 19, 0.12);
+    --theme-image: url(../images/themes/steampunk.png);
+    --theme-overlay: rgba(25, 20, 16, 0.3);
+}
+
+/* 22. MINIMAL ZEN — Ink-brushed clean white */
+[data-theme="minimal-zen"] {
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F7F7F7;
+    --bg-card: rgba(255, 255, 255, 0.85);
+    --bg-card-hover: rgba(255, 255, 255, 0.98);
+    --text-primary: #111111;
+    --text-secondary: #555555;
+    --text-muted: #999999;
+    --accent: #222222;
+    --accent-hover: #000000;
+    --accent-soft: rgba(0, 0, 0, 0.06);
+    --accent-glow: rgba(0, 0, 0, 0.15);
+    --border: rgba(0, 0, 0, 0.08);
+    --border-light: rgba(0, 0, 0, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.03);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.08);
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(0, 0, 0, 0.06);
+    --mood-1: #E53E3E; --mood-2: #DD6B20; --mood-3: #D69E2E; --mood-4: #38A169; --mood-5: #2F855A;
+    --aurora-1: rgba(0, 0, 0, 0.03);
+    --aurora-2: rgba(128, 128, 128, 0.02);
+    --aurora-3: rgba(200, 200, 200, 0.01);
+    --theme-image: url(../images/themes/minimal-zen.png);
+    --theme-overlay: rgba(255, 255, 255, 0.15);
+}
+
+/* 23. ROYAL PURPLE — Imperial violet and gold */
+[data-theme="royal-purple"] {
+    --bg-primary: #12041C;
+    --bg-secondary: #1E0A2D;
+    --bg-card: rgba(30, 10, 45, 0.76);
+    --bg-card-hover: rgba(40, 15, 60, 0.88);
+    --text-primary: #F6EDFC;
+    --text-secondary: #CCA8E4;
+    --text-muted: #9974B3;
+    --accent: #D4AF37;
+    --accent-hover: #C5A02B;
+    --accent-soft: rgba(212, 175, 55, 0.15);
+    --accent-glow: rgba(212, 175, 55, 0.35);
+    --border: rgba(212, 175, 55, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.65);
+    --glass-bg: rgba(18, 4, 28, 0.65);
+    --glass-border: rgba(212, 175, 55, 0.07);
+    --mood-1: #EF4444; --mood-2: #F97316; --mood-3: #8E65DC; --mood-4: #D4AF37; --mood-5: #C5A02B;
+    --aurora-1: rgba(142, 101, 220, 0.22);
+    --aurora-2: rgba(212, 175, 55, 0.18);
+    --aurora-3: rgba(100, 20, 150, 0.15);
+    --theme-image: url(../images/themes/royal-purple.png);
+    --theme-overlay: rgba(18, 4, 28, 0.3);
+}
+
+/* 24. AUTUMN HARVEST — Cozy burnt orange and deep red */
+[data-theme="autumn-harvest"] {
+    --bg-primary: #1C0C04;
+    --bg-secondary: #2C1408;
+    --bg-card: rgba(44, 20, 8, 0.76);
+    --bg-card-hover: rgba(54, 26, 12, 0.88);
+    --text-primary: #FDEEE6;
+    --text-secondary: #DCB8A6;
+    --text-muted: #9F8272;
+    --accent: #E05A1F;
+    --accent-hover: #C64914;
+    --accent-soft: rgba(224, 90, 31, 0.15);
+    --accent-glow: rgba(224, 90, 31, 0.35);
+    --border: rgba(224, 90, 31, 0.08);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 12px 42px rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(28, 12, 4, 0.65);
+    --glass-border: rgba(224, 90, 31, 0.07);
+    --mood-1: #B91C1C; --mood-2: #E05A1F; --mood-3: #D97706; --mood-4: #9A3412; --mood-5: #7C2D12;
+    --aurora-1: rgba(224, 90, 31, 0.22);
+    --aurora-2: rgba(185, 28, 28, 0.18);
+    --aurora-3: rgba(217, 119, 6, 0.12);
+    --theme-image: url(../images/themes/autumn-harvest.png);
+    --theme-overlay: rgba(28, 12, 4, 0.3);
+}
+

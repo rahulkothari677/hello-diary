@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="serene-dawn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Hello Diary — Premium secure digital sanctuary. Write freely, track your mood, and protect your precious memories.">
+    <meta name="theme-color" content="#6B7FD7">
+    
+    <title>Hello Diary — Your Sacred Digital Sanctuary</title>
+
+    <!-- Prevent Flash of Unstyled Content (FOUC) by loading theme instantly -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('hello-diary-theme') || 'serene-dawn';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
+
+    <!-- Stylings -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/editor.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+    <!-- ==========================================
+         AURORA FLOATING MESH & OVERLAYS
+         ========================================== -->
+    <div id="aurora-bg" class="aurora-background" aria-hidden="true">
+        <div class="aurora-orb aurora-orb-1"></div>
+        <div class="aurora-orb aurora-orb-2"></div>
+        <div class="aurora-orb aurora-orb-3"></div>
+        <div class="film-grain"></div>
+    </div>
+
+    <!-- Background overlay for mobile drawer -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <!-- ==========================================
+         SCREEN 1: LOCK SCREEN (AUTH)
+         ========================================== -->
+    <div id="screen-lock" class="screen screen--lock active">
+        <div class="lock-container glass-card">
+            <div class="lock-brand">
+                <div class="lock-logo">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                </div>
+                <h1 class="lock-title font-brand">Hello Diary</h1>
+                <p class="lock-subtitle">Enter credentials to unlock</p>
+            </div>
+
+            <!-- Method Switch Tabs -->
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-method="pin">PIN</button>
+                <button class="auth-tab" data-method="pattern">Pattern</button>
+                <button class="auth-tab" data-method="bio">Biometrics</button>
+            </div>
+
+            <!-- PIN input section -->
+            <div id="lock-pin-section" class="auth-section active">
+                <div class="pin-dots">
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                </div>
+                <div class="pin-pad">
+                    <button class="pin-key" data-value="1">1</button>
+                    <button class="pin-key" data-value="2">2</button>
+                    <button class="pin-key" data-value="3">3</button>
+                    <button class="pin-key" data-value="4">4</button>
+                    <button class="pin-key" data-value="5">5</button>
+                    <button class="pin-key" data-value="6">6</button>
+                    <button class="pin-key" data-value="7">7</button>
+                    <button class="pin-key" data-value="8">8</button>
+                    <button class="pin-key" data-value="9">9</button>
+                    <button class="pin-key pin-key--empty" disabled></button>
+                    <button class="pin-key" data-value="0">0</button>
+                    <button class="pin-key pin-key--delete" data-value="back">⌫</button>
+                </div>
+                <p class="auth-error" id="pin-error-msg"></p>
+            </div>
+
+            <!-- Pattern input section -->
+            <div id="lock-pattern-section" class="auth-section">
+                <p class="lock-subtitle" style="margin-bottom: 12px;">Draw pattern connecting at least 4 nodes</p>
+                <canvas id="pattern-canvas" width="280" height="280"></canvas>
+                <p class="auth-error" id="pattern-error-msg"></p>
+            </div>
+
+            <!-- Biometric input section -->
+            <div id="lock-bio-section" class="auth-section">
+                <button class="bio-trigger" id="lock-bio-trigger">
+                    <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 12a10 10 0 1 1 20 0 10 10 0 0 1-20 0z"/>
+                        <path d="M12 10a2 2 0 0 1 2 2"/>
+                        <path d="M9 12a3 3 0 0 1 6 0"/>
+                        <path d="M6 12a6 6 0 0 1 12 0"/>
+                    </svg>
+                    <span>Tap to scan fingerprint</span>
+                </button>
+                <p class="auth-error" id="bio-error-msg"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         SCREEN 2: FIRST-TIME SETUP SCREEN
+         ========================================== -->
+    <div id="screen-setup" class="screen screen--setup">
+        <div class="setup-container glass-card">
+            <div class="setup-brand">
+                <div class="lock-logo" style="background: var(--accent-soft); color: var(--accent);">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                </div>
+                <h1 class="setup-title font-brand">Create Your Sanctuary</h1>
+                <p class="setup-subtitle">Let's secure your thoughts in 3 easy steps</p>
+            </div>
+
+            <div class="setup-steps">
+                <!-- Step progress line -->
+                <div class="setup-progress">
+                    <div id="setup-progress-fill" class="setup-progress-fill" style="width: 33.3%;"></div>
+                </div>
+
+                <!-- Step 1: Choose Protection Method -->
+                <div id="setup-step-1" class="setup-step active">
+                    <h2>Step 1: Choose Protection</h2>
+                    <p>Select how you want to unlock your entries. You can switch this in Settings later.</p>
+                    
+                    <div class="security-options">
+                        <div class="security-option selected" data-method="pin">
+                            <div class="security-option-icon">🔢</div>
+                            <span>PIN Lock</span>
+                            <small>6-digit numeric PIN</small>
+                        </div>
+                        <div class="security-option" data-method="pattern">
+                            <div class="security-option-icon">🧬</div>
+                            <span>Pattern Lock</span>
+                            <small>3x3 grid connecting code</small>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn--primary btn--full" id="btn-setup-next-1">Continue</button>
+                </div>
+
+                <!-- Step 2: Set Code / Pattern -->
+                <div id="setup-step-2" class="setup-step">
+                    <h2 id="setup-step-2-title">Step 2: Define PIN Lock</h2>
+                    <p id="setup-step-2-desc">Please input your new 6-digit access code.</p>
+                    
+                    <div id="setup-pin-container" style="display: flex; flex-direction: column; align-items: center;">
+                        <div class="pin-dots" id="setup-pin-dots">
+                            <span class="pin-dot"></span>
+                            <span class="pin-dot"></span>
+                            <span class="pin-dot"></span>
+                            <span class="pin-dot"></span>
+                            <span class="pin-dot"></span>
+                            <span class="pin-dot"></span>
+                        </div>
+                        <div class="pin-pad" id="setup-pin-pad">
+                            <button class="pin-key" data-value="1">1</button>
+                            <button class="pin-key" data-value="2">2</button>
+                            <button class="pin-key" data-value="3">3</button>
+                            <button class="pin-key" data-value="4">4</button>
+                            <button class="pin-key" data-value="5">5</button>
+                            <button class="pin-key" data-value="6">6</button>
+                            <button class="pin-key" data-value="7">7</button>
+                            <button class="pin-key" data-value="8">8</button>
+                            <button class="pin-key" data-value="9">9</button>
+                            <button class="pin-key pin-key--empty" disabled></button>
+                            <button class="pin-key" data-value="0">0</button>
+                            <button class="pin-key pin-key--delete" data-value="back">⌫</button>
+                        </div>
+                    </div>
+                    
+                    <div id="setup-pattern-container" style="display: none; flex-direction: column; align-items: center;">
+                        <canvas id="setup-pattern-canvas" width="280" height="280"></canvas>
+                    </div>
+
+                    <p class="auth-error" id="setup-error-msg"></p>
+                    
+                    <div style="display: flex; gap: var(--space-md); width: 100%;">
+                        <button class="btn btn--outline" id="btn-setup-back-2" style="flex: 1;">Back</button>
+                        <button class="btn btn--primary" id="btn-setup-next-2" style="flex: 2;">Confirm Code</button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Choose initial vibe (Themes) -->
+                <div id="setup-step-3" class="setup-step">
+                    <h2>Step 3: Select Vibe Preset</h2>
+                    <p>Select your aesthetic background theme. Feel free to preview and test any.</p>
+                    
+                    <div class="theme-picker theme-picker--compact" id="theme-picker-setup">
+                        <!-- Populated dynamically by JS -->
+                    </div>
+                    
+                    <div style="display: flex; gap: var(--space-md); width: 100%; margin-top: var(--space-sm);">
+                        <button class="btn btn--outline" id="btn-setup-back-3" style="flex: 1;">Back</button>
+                        <button class="btn btn--primary" id="btn-setup-finish" style="flex: 2;">Enter Sanctuary ✨</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         SCREEN 3: MAIN APP DASHBOARD
+         ========================================== -->
+    <div id="screen-dashboard" class="screen screen--dashboard">
+        <div class="dashboard-layout">
+            
+            <!-- Sidebar Navigation (Desktop only, drawer overlay on mobile) -->
+            <aside class="sidebar" id="sidebar-panel">
+                <div class="sidebar-brand">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);">
+                        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <span class="sidebar-brand-text font-brand">Hello Diary</span>
+                </div>
+                
+                <nav class="sidebar-nav">
+                    <button class="nav-item active" data-view="timeline">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                        </svg>
+                        <span>Timeline</span>
+                    </button>
+                    <button class="nav-item" data-view="calendar">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                        <span>Calendar</span>
+                    </button>
+                    <button class="nav-item" data-view="analytics">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 20V10M12 20V4M6 20v-6"/>
+                        </svg>
+                        <span>Insights</span>
+                    </button>
+                    <button class="nav-item" data-view="settings">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                        <span>Settings</span>
+                    </button>
+                </nav>
+                
+                <div class="sidebar-footer">
+                    <button class="nav-item nav-item--lock" id="btn-sidebar-lock">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        <span>Lock App</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Main Panel View -->
+            <main class="main-content">
+                
+                <!-- Main Header -->
+                <header class="topbar">
+                    <button class="topbar-menu-btn" id="btn-hamburger" aria-label="Menu">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+                        </svg>
+                    </button>
+                    <h2 class="topbar-title font-brand" id="dashboard-title">Timeline</h2>
+                    <div class="flex align-center" style="gap: var(--space-sm);">
+                        <button class="topbar-btn" id="btn-search-toggle" aria-label="Search">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            </svg>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Search Panel Overlay -->
+                <div class="search-overlay" id="search-panel">
+                    <div class="search-bar">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input type="text" placeholder="Search your diary entries..." class="input" id="search-box">
+                        <button class="search-close" id="btn-search-close">&times;</button>
+                    </div>
+                    <div class="search-results" id="search-list-box">
+                        <!-- Search results load here -->
+                    </div>
+                </div>
+
+                <!-- VIEW PANEL 1: TIMELINE -->
+                <div id="view-timeline" class="view-container">
+                    
+                    <!-- Flashback Widget -->
+                    <div class="on-this-day glass-card" style="padding: var(--space-md); margin-bottom: var(--space-md); display: flex; align-items: center; gap: var(--space-md);">
+                        <span style="font-size: 1.5rem;">💫</span>
+                        <div style="flex: 1;">
+                            <h4 class="font-title" style="font-size: 0.95rem; font-weight: 600;">On This Day</h4>
+                            <p style="font-size: 0.82rem; color: var(--text-secondary);">One year ago, you wrote: "Started brainstorming my next big project. Feeling super motivated!"</p>
+                        </div>
+                        <button class="topbar-btn" style="padding: 4px;">&times;</button>
+                    </div>
+
+                    <!-- Entries timeline -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-md);" class="entries-grid">
+                        
+                        <!-- Mock Entry Card 1 -->
+                        <div class="glass-card spring-hover" style="padding: var(--space-md); display: flex; flex-direction: column; gap: var(--space-sm); cursor: pointer; border-left: 4px solid var(--mood-5);">
+                            <div class="flex justify-between align-center">
+                                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">JUNE 14, 2026</span>
+                                <span style="font-size: 1.3rem;" title="Great">😊</span>
+                            </div>
+                            <h3 class="font-title" style="font-size: 1.15rem; font-weight: 600;">Launching Hello Diary Step 1!</h3>
+                            <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                Today we successfully finalized the design system and skeleton interface of the new Hello Diary app. The glassmorphism card layouts look beautiful and the animations feel extremely fluid. Can't wait to connect the crypto DB!
+                            </p>
+                            <div class="flex" style="gap: 4px; margin-top: auto; flex-wrap: wrap;">
+                                <span class="tag-pill" style="padding: 2px 8px; font-size: 0.7rem;">#progress</span>
+                                <span class="tag-pill" style="padding: 2px 8px; font-size: 0.7rem;">#design</span>
+                            </div>
+                        </div>
+
+                        <!-- Mock Entry Card 2 -->
+                        <div class="glass-card spring-hover" style="padding: var(--space-md); display: flex; flex-direction: column; gap: var(--space-sm); cursor: pointer; border-left: 4px solid var(--mood-4);">
+                            <div class="flex justify-between align-center">
+                                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">JUNE 12, 2026</span>
+                                <span style="font-size: 1.3rem;" title="Good">🙂</span>
+                            </div>
+                            <h3 class="font-title" style="font-size: 1.15rem; font-weight: 600;">Morning Meditation Reflection</h3>
+                            <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                Spent 20 minutes sitting in absolute silence this morning. My mind was jumping around at first, but centering my breathing really helped establish calm. Highly recommend doing this daily.
+                            </p>
+                            <div class="flex" style="gap: 4px; margin-top: auto; flex-wrap: wrap;">
+                                <span class="tag-pill" style="padding: 2px 8px; font-size: 0.7rem;">#zen</span>
+                                <span class="tag-pill" style="padding: 2px 8px; font-size: 0.7rem;">#health</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW PANEL 2: CALENDAR -->
+                <div id="view-calendar" class="view-container" style="display: none;">
+                    <div class="glass-card" style="padding: var(--space-md); margin-bottom: var(--space-md);">
+                        <div class="flex justify-between align-center" style="margin-bottom: var(--space-md);">
+                            <button class="btn btn--outline btn--sm">&lt;</button>
+                            <h3 class="font-title">June 2026</h3>
+                            <button class="btn btn--outline btn--sm">&gt;</button>
+                        </div>
+                        
+                        <!-- Simple Mock calendar grid -->
+                        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--space-xs); text-align: center;">
+                            <!-- Days of week -->
+                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">S</div>
+                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">M</div>
+                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">T</div>
+                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">W</div>
+                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">T</div>
+                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">F</div>
+                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); padding: 4px 0;">S</div>
+                            
+                            <!-- Calendar empty padding -->
+                            <div style="padding: 10px 0; opacity: 0.25;">31</div>
+                            
+                            <!-- Days -->
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">1</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">2</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">3</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">4</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">5</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">6</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">7</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">8</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">9</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">10</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">11</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer; position: relative;" class="spring-hover">
+                                12
+                                <span style="position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--mood-4);"></span>
+                            </div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer;" class="spring-hover">13</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); cursor: pointer; background: var(--accent-soft); color: var(--accent); font-weight: 700; position: relative;" class="spring-hover">
+                                14
+                                <span style="position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--mood-5);"></span>
+                            </div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); opacity: 0.4;">15</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); opacity: 0.4;">16</div>
+                            <div style="padding: 10px 0; border-radius: var(--radius-sm); opacity: 0.4;">17</div>
+                            <!-- ... -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW PANEL 3: INSIGHTS / ANALYTICS -->
+                <div id="view-analytics" class="view-container" style="display: none;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-md);">
+                        
+                        <!-- Mood balance -->
+                        <div class="glass-card" style="padding: var(--space-md);">
+                            <h3 class="font-title" style="margin-bottom: var(--space-md);">Mood Balance</h3>
+                            <!-- Simple visual SVG mockup -->
+                            <div style="display: flex; height: 180px; align-items: center; justify-content: center;">
+                                <svg width="120" height="120" viewBox="0 0 42 42">
+                                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--border)" stroke-width="4"></circle>
+                                    <!-- Green section -->
+                                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--mood-5)" stroke-width="4.2" stroke-dasharray="60 40" stroke-dashoffset="25"></circle>
+                                    <!-- Gold section -->
+                                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--mood-3)" stroke-width="4.2" stroke-dasharray="20 80" stroke-dashoffset="85"></circle>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Streaks card -->
+                        <div class="glass-card" style="padding: var(--space-md); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                            <span style="font-size: 3rem;">🔥</span>
+                            <h2 class="font-brand" style="font-size: 2.5rem; color: var(--accent); margin: var(--space-sm) 0;">12</h2>
+                            <p style="font-size: 0.95rem; font-weight: 600;">Day Writing Streak!</p>
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Keep writing daily to unlock the "Sanctuary Sage" badge.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW PANEL 4: SETTINGS -->
+                <div id="view-settings" class="view-container" style="display: none;">
+                    <div style="display: flex; flex-direction: column; gap: var(--space-md); max-width: 600px; margin: 0 auto;">
+                        
+                        <!-- Appearance Section -->
+                        <div class="glass-card" style="padding: var(--space-md);">
+                            <h3 class="font-title" style="margin-bottom: var(--space-md); font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 6px;">Appearance</h3>
+                            <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+                                <div class="flex justify-between align-center">
+                                    <span style="font-size: 0.95rem; font-weight: 500;">Select Theme</span>
+                                </div>
+                                <div class="theme-picker theme-picker--compact" id="theme-picker-settings">
+                                    <!-- Populated dynamically by JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Security Section -->
+                        <div class="glass-card" style="padding: var(--space-md);">
+                            <h3 class="font-title" style="margin-bottom: var(--space-md); font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 6px;">Security</h3>
+                            <div class="flex justify-between align-center" style="margin-bottom: var(--space-md);">
+                                <div>
+                                    <h4 style="font-size: 0.95rem; font-weight: 500;">Biometric Fingerprint Lock</h4>
+                                    <p style="font-size: 0.78rem; color: var(--text-secondary);">Authenticate using secure device sensors</p>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" id="toggle-biometrics">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="flex justify-between align-center">
+                                <span style="font-size: 0.95rem; font-weight: 500;">Access Locking Method</span>
+                                <button class="btn btn--outline btn--sm">Change Code</button>
+                            </div>
+                        </div>
+
+                        <!-- Backup and Sync -->
+                        <div class="glass-card" style="padding: var(--space-md);">
+                            <h3 class="font-title" style="margin-bottom: var(--space-md); font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 6px;">Data Sync</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
+                                <button class="btn btn--outline">Backup JSON</button>
+                                <button class="btn btn--outline">Restore JSON</button>
+                                <button class="btn btn--outline" style="grid-column: span 2;">Export to Styled PDF</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAB Button to create new entry -->
+                <button class="fab" id="btn-fab-new-entry" aria-label="Create new entry">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                </button>
+
+                <!-- Mobile Bottom navigation bar -->
+                <nav class="bottom-nav">
+                    <button class="bottom-nav-item active" data-view="timeline">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                        </svg>
+                        <span>Timeline</span>
+                    </button>
+                    <button class="bottom-nav-item" data-view="calendar">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                        <span>Calendar</span>
+                    </button>
+                    
+                    <button class="bottom-nav-item bottom-nav-item--fab" id="btn-mobile-fab" aria-label="New Entry">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                    </button>
+                    
+                    <button class="bottom-nav-item" data-view="analytics">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 20V10M12 20V4M6 20v-6"/>
+                        </svg>
+                        <span>Insights</span>
+                    </button>
+                    <button class="bottom-nav-item" data-view="settings">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                        <span>Settings</span>
+                    </button>
+                </nav>
+            </main>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         SCREEN 4: EDITOR SCREEN
+         ========================================== -->
+    <div id="screen-editor" class="screen screen--editor">
+        <!-- Editor Header -->
+        <header class="editor-topbar">
+            <button class="editor-topbar-btn" id="btn-editor-back" aria-label="Back">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+                </svg>
+            </button>
+            <div class="editor-topbar-center">
+                <span class="editor-date">June 14, 2026</span>
+                <span class="save-indicator" id="save-indicator-badge">Auto-Saved</span>
+            </div>
+            <div class="flex" style="gap: var(--space-xs);">
+                <button class="editor-topbar-btn" id="btn-focus-mode" title="Focus Mode">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </button>
+                <button class="editor-topbar-btn editor-topbar-btn--danger" id="btn-editor-delete" title="Delete Entry">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Mood picker bar -->
+        <div class="mood-selector">
+            <span class="mood-label">How are you feeling right now?</span>
+            <div class="mood-picker">
+                <button class="mood-btn" data-mood="1" title="Awful">😢</button>
+                <button class="mood-btn" data-mood="2" title="Bad">😕</button>
+                <button class="mood-btn" data-mood="3" title="Okay">😐</button>
+                <button class="mood-btn" data-mood="4" title="Good">🙂</button>
+                <button class="mood-btn selected" data-mood="5" title="Great">😊</button>
+            </div>
+        </div>
+
+        <!-- Tags management bar -->
+        <div class="tags-area">
+            <div class="entry-tags" id="editor-tags-list">
+                <span class="tag-pill">#personal <button class="tag-remove">&times;</button></span>
+                <span class="tag-pill">#thoughts <button class="tag-remove">&times;</button></span>
+            </div>
+            <button class="add-tag-btn" id="btn-editor-add-tag">+ Add tag</button>
+        </div>
+
+        <!-- Format editor toolbar -->
+        <div class="editor-toolbar">
+            <button class="toolbar-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+            <button class="toolbar-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+            <button class="toolbar-btn" data-cmd="underline" title="Underline" style="text-decoration: underline;">U</button>
+            <span class="toolbar-divider"></span>
+            <button class="toolbar-btn" data-cmd="h1">H1</button>
+            <button class="toolbar-btn" data-cmd="h2">H2</button>
+            <button class="toolbar-btn" data-cmd="quote">Quote</button>
+            <span class="toolbar-divider"></span>
+            <button class="toolbar-btn" data-cmd="insertUnorderedList">Bullet</button>
+            <button class="toolbar-btn" data-cmd="insertOrderedList">Number</button>
+            <span class="toolbar-divider"></span>
+            <button class="toolbar-btn" data-cmd="horizontalRule">—</button>
+            
+            <!-- Font settings dropdown trigger (Step 5 core logic) -->
+            <span class="toolbar-divider"></span>
+            <button class="toolbar-btn" id="btn-font-picker">Font</button>
+            <button class="toolbar-btn" id="btn-size-picker">A±</button>
+        </div>
+
+        <!-- Main text writing core area -->
+        <div class="editor-body-wrapper">
+            <div class="editor-content font-merriweather size-medium" id="rich-editor-field" contenteditable="true" data-placeholder="What is on your mind today? Write freely..."></div>
+        </div>
+
+        <!-- Footer counters -->
+        <div class="editor-footer">
+            <span id="editor-word-count">24 words</span>
+            <span class="editor-stat-divider">·</span>
+            <span id="editor-read-time">1 min read</span>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MODALS & DIALOGS
+         ========================================== -->
+
+    <!-- Modal: View Entry Details (Read-only view) -->
+    <div class="modal-overlay" id="modal-view-entry">
+        <div class="modal glass-card">
+            <header class="modal-header">
+                <div>
+                    <h3 class="modal-title font-brand" id="view-modal-title">Launching Hello Diary Step 1!</h3>
+                    <span id="view-modal-subtitle" style="font-size: 0.8rem; color: var(--text-secondary);">June 14, 2026 · 😊 Great</span>
+                </div>
+                <button class="modal-close" id="btn-view-modal-close">&times;</button>
+            </header>
+            <div style="font-size: 0.95rem; line-height: 1.8; max-height: 350px; overflow-y: auto; padding-right: var(--space-xs);" id="view-modal-body">
+                Today we successfully finalized the design system and skeleton interface of the new Hello Diary app. The glassmorphism card layouts look beautiful and the animations feel extremely fluid. Can't wait to connect the crypto DB!
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn--outline" id="btn-view-modal-edit">Edit Entry</button>
+                <button class="btn btn--primary" id="btn-view-modal-done">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Custom Tag -->
+    <div class="modal-overlay" id="modal-add-tag">
+        <div class="modal modal--sm glass-card">
+            <h3 class="modal-title" style="margin-bottom: var(--space-md);">Add Tag</h3>
+            <input type="text" placeholder="e.g. happy, travels, log" class="input" id="tag-modal-input" maxlength="20">
+            
+            <div class="tag-suggestions">
+                <button class="tag-suggestion" data-tag="grateful">🙏 grateful</button>
+                <button class="tag-suggestion" data-tag="happy">😊 happy</button>
+                <button class="tag-suggestion" data-tag="work">💼 work</button>
+                <button class="tag-suggestion" data-tag="love">❤️ love</button>
+                <button class="tag-suggestion" data-tag="travel">✈️ travel</button>
+                <button class="tag-suggestion" data-tag="health">🏃 health</button>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn--outline btn--sm" id="btn-tag-modal-cancel">Cancel</button>
+                <button class="btn btn--primary btn--sm" id="btn-tag-modal-add">Add Tag</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirm Action -->
+    <div class="modal-overlay" id="modal-confirm">
+        <div class="modal modal--sm glass-card">
+            <h3 class="modal-title" id="confirm-modal-title" style="margin-bottom: var(--space-sm);">Are you sure?</h3>
+            <p id="confirm-modal-desc" style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5;"></p>
+            <div class="modal-actions">
+                <button class="btn btn--outline btn--sm" id="btn-confirm-cancel">Cancel</button>
+                <button class="btn btn--danger btn--sm" id="btn-confirm-ok">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast message box -->
+    <div id="toast-message" class="toast">
+        <span id="toast-text">Action completed successfully</span>
+    </div>
+
+    <!-- ==========================================
+         TEMPORARY DEV TOOL SWITCHER (Step 1 Preview)
+         ========================================== -->
+    <script src="js/dev-toggle.js"></script>
+
+</body>
+</html>

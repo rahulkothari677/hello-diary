@@ -1,0 +1,152 @@
+/* ==========================================================================
+   Hello Diary — Animations Stylesheet
+   Defines the interactive animated Aurora mesh, film grain loop, page fades,
+   modal pops, and feedback spring keyframes.
+   ========================================================================== */
+
+/* --- Animated Aurora Mesh Gradient --- */
+.aurora-background {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    z-index: 1;
+    background-color: var(--bg-primary);
+    transition: background-color var(--transition-slow);
+}
+
+/* Theme background image layer */
+.aurora-background::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--theme-image, none);
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    opacity: 0.22;
+    transition: opacity 0.6s ease, background-image 0.6s ease;
+    z-index: 0;
+}
+
+/* Theme color overlay wash for readability */
+.aurora-background::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--theme-overlay, transparent);
+    z-index: 1;
+    pointer-events: none;
+}
+
+.aurora-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.6;
+    mix-blend-mode: screen;
+    z-index: 2;
+}
+
+/* Orb 1: Core Accent */
+.aurora-orb-1 {
+    width: 60vw;
+    height: 60vw;
+    background: var(--aurora-1);
+    top: -20vw;
+    left: -10vw;
+    animation: orbMove1 22s infinite alternate ease-in-out;
+}
+
+/* Orb 2: Secondary Tone */
+.aurora-orb-2 {
+    width: 50vw;
+    height: 50vw;
+    background: var(--aurora-2);
+    bottom: -15vw;
+    right: -5vw;
+    animation: orbMove2 18s infinite alternate ease-in-out;
+}
+
+/* Orb 3: Light Highlight */
+.aurora-orb-3 {
+    width: 40vw;
+    height: 40vw;
+    background: var(--aurora-3);
+    top: 30vw;
+    right: 15vw;
+    animation: orbMove3 20s infinite alternate ease-in-out;
+}
+
+@keyframes orbMove1 {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(10vw, 15vh) scale(1.1); }
+    100% { transform: translate(-5vw, 25vh) scale(0.9); }
+}
+
+@keyframes orbMove2 {
+    0% { transform: translate(0, 0) scale(0.9); }
+    50% { transform: translate(-15vw, -10vh) scale(1.15); }
+    100% { transform: translate(5vw, -25vh) scale(1); }
+}
+
+@keyframes orbMove3 {
+    0% { transform: translate(0, 0) scale(1.1); }
+    50% { transform: translate(8vw, -12vh) scale(0.85); }
+    100% { transform: translate(-10vw, 10vh) scale(1); }
+}
+
+/* --- Film Grain Overlay --- */
+.film-grain {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.025; /* Very subtle texture */
+    pointer-events: none;
+    z-index: 100;
+}
+
+/* If a light theme is selected, we invert blend for visibility */
+[data-theme="serene-dawn"] .film-grain,
+[data-theme="sakura-garden"] .film-grain,
+[data-theme="forest-sanctuary"] .film-grain,
+[data-theme="lavender-dream"] .film-grain,
+[data-theme="mountain-peak"] .film-grain,
+[data-theme="vintage-typewriter"] .film-grain,
+[data-theme="minimal-zen"] .film-grain {
+    mix-blend-mode: multiply;
+    opacity: 0.04;
+}
+
+/* --- Interactive Ripple Animation --- */
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(0);
+    animation: rippleEffect 0.5s ease-out;
+    pointer-events: none;
+}
+
+@keyframes rippleEffect {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* --- Spring Motion Effects --- */
+.spring-hover {
+    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.spring-hover:hover {
+    transform: translateY(-2px) scale(1.03);
+}
+
+.spring-hover:active {
+    transform: translateY(1px) scale(0.97);
+}

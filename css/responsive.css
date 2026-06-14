@@ -1,0 +1,98 @@
+/* ==========================================================================
+   Hello Diary — Responsive Adaptations
+   Manages media queries for adapting to mobile devices, tablets, and desktops.
+   ========================================================================== */
+
+/* --- Mobile First Adaptations (default sizes under 768px) --- */
+@media (max-width: 767px) {
+    /* Hide desktop elements */
+    .sidebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: var(--sidebar-width);
+        height: 100%;
+        background: var(--bg-card);
+        border-right: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-lg);
+        z-index: 500;
+    }
+    
+    /* Open sidebar overlay */
+    .sidebar.open {
+        display: flex;
+        animation: slideInFromLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    
+    .sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(4px);
+        z-index: 450;
+        display: none;
+    }
+    
+    .sidebar-overlay.active {
+        display: block;
+    }
+    
+    /* Adjust entries card details for mobile */
+    .entries-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+@keyframes slideInFromLeft {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
+
+/* --- Tablet Devices (768px to 1023px) --- */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .sidebar {
+        display: none;
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: var(--sidebar-width);
+        height: 100%;
+        background: var(--bg-card);
+        border-right: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-lg);
+        z-index: 500;
+    }
+    
+    .sidebar.open {
+        display: flex;
+        animation: slideInFromLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    
+    .sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(4px);
+        z-index: 450;
+        display: none;
+    }
+    
+    .sidebar-overlay.active {
+        display: block;
+    }
+}
+
+/* --- Desktop Layout (1024px and above) --- */
+@media (min-width: 1024px) {
+    .sidebar {
+        display: flex;
+        position: relative;
+    }
+    
+    .sidebar-overlay {
+        display: none !important;
+    }
+}
