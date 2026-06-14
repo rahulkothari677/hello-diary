@@ -605,8 +605,95 @@ async function main() {
             let cardsCount = await evaluate('document.querySelectorAll("#view-timeline .entries-grid > div").length');
             console.log('✓ Total dashboard timeline cards count:', cardsCount);
 
+            console.log('\n=== TEST FLOW E: INTERACTIVE SVG ANALYTICS & INSIGHTS ===');
+            
+            console.log('Switching view to Insights tab...');
+            await evaluate('switchDashboardView("analytics")');
+            await sleep(500);
+
+            console.log('Verifying Wellness score and counters...');
+            let wellnessText = await evaluate('document.getElementById("wellness-score-value").textContent');
+            console.log('✓ Wellness Score rendered:', wellnessText);
+            if (!wellnessText || wellnessText === '0%') {
+                throw new Error('Wellness score failed to compute. Got: ' + wellnessText);
+            }
+
+            let streakText = await evaluate('document.getElementById("analytics-streak-value").textContent');
+            console.log('✓ Current Streak rendered:', streakText);
+            if (!streakText || !streakText.includes('day')) {
+                throw new Error('Streak value failed to render. Got: ' + streakText);
+            }
+
+            console.log('Verifying Trend line graph SVG...');
+            let lineChartExists = await evaluate('document.querySelectorAll("#trend-chart-box svg path.chart-line").length > 0');
+            let trendDotsCount = await evaluate('document.querySelectorAll("#trend-chart-box svg circle.chart-dot").length');
+            console.log(`✓ SVG Line chart rendered with ${trendDotsCount} interactive dots.`);
+            if (!lineChartExists || trendDotsCount === 0) {
+                throw new Error('Mood Trend SVG failed to render properly.');
+            }
+
+            console.log('Verifying Donut chart SVG...');
+            let donutSlicesCount = await evaluate('document.querySelectorAll("#donut-chart-box svg circle.donut-slice").length');
+            console.log(`✓ Donut chart rendered with ${donutSlicesCount} segments.`);
+            if (donutSlicesCount === 0) {
+                throw new Error('Donut chart slices not found.');
+            }
+
+            console.log('Verifying Weekday bar chart SVG...');
+            let barCount = await evaluate('document.querySelectorAll("#weekday-chart-box svg rect.bar-column").length');
+            console.log(`✓ Weekday bar chart rendered with ${barCount} columns.`);
+            if (barCount === 0) {
+                throw new Error('Weekday bar chart columns not found.');
+            }
+
+            console.log('Verifying Heatmap grid SVG...');
+            let heatmapCellsCount = await evaluate('document.querySelectorAll("#heatmap-chart-box svg rect.heatmap-cell").length');
+            console.log(`✓ Activity Heatmap grid rendered with ${heatmapCellsCount} cells.`);
+            if (heatmapCellsCount === 0) {
+                throw new Error('Heatmap cells not found.');
+            }
+
+            console.log('Verifying Tag correlations rankings...');
+            let tagsCorrCount = await evaluate('document.querySelectorAll("#tag-correlations-box .tag-correlation-card").length');
+            console.log(`✓ Tag correlation cards rendered: ${tagsCorrCount}`);
+            if (tagsCorrCount === 0) {
+                throw new Error('Tag correlation cards not found.');
+            }
+
+            console.log('Testing interactive SVG tooltips...');
+            // Hover over the first dot in the trend chart
+            await evaluate(`
+                const dot = document.querySelector("#trend-chart-box svg circle.chart-dot");
+                if (dot) {
+                    dot.dispatchEvent(new Event('mouseover'));
+                    const rect = dot.getBoundingClientRect();
+                    const e = new MouseEvent('mousemove', {
+                        clientX: rect.left + window.scrollX,
+                        clientY: rect.top + window.scrollY,
+                        bubbles: true
+                    });
+                    dot.dispatchEvent(e);
+                }
+            `);
+            await sleep(300);
+            
+            let tooltipOpacity = await evaluate('document.getElementById("chart-tooltip").style.opacity');
+            let tooltipContent = await evaluate('document.getElementById("chart-tooltip").innerHTML');
+            console.log('✓ Tooltip opacity is active (1.0):', tooltipOpacity === '1');
+            console.log('✓ Tooltip content matched:', tooltipContent.includes('Mood:') && tooltipContent.includes('Date:'));
+
+            if (tooltipOpacity !== '1' || !tooltipContent.includes('Mood:')) {
+                throw new Error('Interactive tooltip failed to show on hover.');
+            }
+
+            // Leave hover
+            await evaluate('document.querySelector("#trend-chart-box svg circle.chart-dot").dispatchEvent(new Event("mouseleave"))');
+            await sleep(200);
+            tooltipOpacity = await evaluate('document.getElementById("chart-tooltip").style.opacity');
+            console.log('✓ Tooltip hidden after mouseleave (0.0):', tooltipOpacity === '0');
+
             console.log('\n=============================================================');
-            console.log('🎉 ALL STEP 5 PREMIUM EDITOR & TYPOGRAPHY TESTS PASSED! 🎉');
+            console.log('🎉 ALL STEP 6 SVG ANALYTICS & INSIGHTS TESTS PASSED! 🎉');
             console.log('=============================================================');
 
             ws.close();

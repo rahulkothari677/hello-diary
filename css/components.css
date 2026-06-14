@@ -1097,3 +1097,156 @@
 .calendar-dot--mood-3 { background: var(--mood-3); }
 .calendar-dot--mood-4 { background: var(--mood-4); }
 .calendar-dot--mood-5 { background: var(--mood-5); }
+
+/* ==========================================================================
+   ANALYTICS & INTERACTIVE SVG CHARTS STYLING
+   ========================================================================== */
+
+/* Wellness Ring Animations */
+.wellness-ring-container svg {
+    transform: rotate(-90deg);
+}
+
+/* Tooltip Styling */
+.chart-tooltip {
+    background: rgba(20, 20, 25, 0.75);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    line-height: 1.4;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+    transform: translate(-50%, -105%);
+}
+
+[data-theme^="vintage"] .chart-tooltip,
+[data-theme^="minimal"] .chart-tooltip,
+[data-theme^="autumn"] .chart-tooltip {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: #333;
+}
+
+.chart-tooltip h5 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 0.82rem;
+}
+
+.chart-tooltip p {
+    margin: 2px 0 0 0;
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+/* SVG Chart Elements */
+.chart-container svg {
+    overflow: visible;
+    width: 100%;
+    height: 100%;
+}
+
+.chart-line {
+    fill: none;
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: stroke 0.3s;
+}
+
+.chart-area {
+    opacity: 0.18;
+    transition: fill 0.3s;
+}
+
+.chart-dot {
+    fill: var(--accent);
+    stroke: var(--bg-card, #fff);
+    stroke-width: 2.5;
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), r 0.2s;
+}
+
+.chart-dot:hover {
+    r: 7.5;
+    stroke-width: 3;
+}
+
+/* Bar Chart columns */
+.bar-column {
+    fill: var(--accent);
+    opacity: 0.85;
+    cursor: pointer;
+    transition: opacity 0.2s, fill 0.2s, y 0.2s, height 0.2s;
+}
+
+.bar-column:hover {
+    opacity: 1;
+    fill: var(--accent-dark, #4D5FA7);
+}
+
+/* Donut slices */
+.donut-slice {
+    fill: none;
+    stroke-width: 6.5;
+    cursor: pointer;
+    transition: stroke-width 0.2s ease, transform 0.2s ease;
+    transform-origin: center;
+}
+
+.donut-slice:hover {
+    stroke-width: 8.5;
+}
+
+/* Heatmap consistency grid */
+.heatmap-cell {
+    rx: 2px;
+    ry: 2px;
+    cursor: pointer;
+    transition: fill 0.15s ease, stroke 0.15s ease;
+    stroke: transparent;
+    stroke-width: 1.5;
+}
+
+.heatmap-cell:hover {
+    stroke: var(--text-secondary);
+    paint-order: stroke fill;
+}
+
+/* Tag correlations display */
+.tag-correlation-card {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-sm);
+    gap: var(--space-xs);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    transition: background 0.2s, transform 0.2s;
+}
+
+.tag-correlation-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-1px);
+}
+
+.correlation-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    position: relative;
+}
+
+.correlation-progress-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    transition: width 0.8s cubic-bezier(0.1, 0.8, 0.2, 1);
+}
+

@@ -865,6 +865,7 @@ const HelloApp = (function() {
             renderCalendar(currentCalendarDate);
             renderOnThisDay();
             renderSearchFilters();
+            renderAnalytics();
         } catch (err) {
             console.error('Failed to load dashboard data:', err);
             showToast('Error decrypting diary entries.');
@@ -1534,6 +1535,682 @@ const HelloApp = (function() {
         viewModal.classList.add('active');
     }
 
+    let analyticsDaysLimit = 7; // Default to 7 days for trend line chart
+
+    /**
+     * Helper to count words in HTML text safely.
+     */
+    function countWordsInHtml(html) {
+        if (!html) return 0;
+        const text = html.replace(/<\/?[^>]+(>|$)/g, " ");
+        const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+        return words.length;
+    }
+
+    /**
+     * Helper to bind glassmorphism tooltips to SVG elements.
+     */
+    function bindChartTooltips(elements) {
+        const tooltip = document.getElementById('chart-tooltip');
+        if (!tooltip) return;
+
+        elements.forEach(el => {
+            el.addEventListener('mouseover', (e) => {
+                const date = el.dataset.date;
+                const title = el.dataset.title;
+                const words = el.dataset.words;
+                const mood = el.dataset.mood;
+                const count = el.dataset.count;
+                const pct = el.dataset.pct;
+                const avg = el.dataset.avg;
+                const level = el.dataset.level;
+
+                if (title) { // Line chart node
+                    tooltip.innerHTML = `
+                        <h5>${title}</h5>
+                        <p><b>Date:</b> ${date}</p>
+                        <p><b>Mood:</b> ${mood}</p>
+                        <p><b>Words:</b> ${words} words</p>
+                    `;
+                } else if (pct) { // Donut slice
+                    tooltip.innerHTML = `
+                        <h5>${mood}</h5>
+                        <p>${pct} of entries (${count})</p>
+                    `;
+                } else if (avg) { // Weekday bar
+                    tooltip.innerHTML = `
+                        <h5>${el.dataset.day}</h5>
+                        <p><b>Average Mood:</b> ${avg} / 5.0</p>
+                        <p><b>Frequency:</b> ${count}</p>
+                    `;
+                } else if (level) { // Heatmap cell
+                    tooltip.innerHTML = `
+                        <h5>${date}</h5>
+                        <p>${entries} entry(ies) · ${words} words (${level})</p>
+                    `;
+                } else {
+                    tooltip.innerHTML = `<p>${date || mood}</p>`;
+                }
+                tooltip.style.opacity = '1';
+            });
+
+            el.addEventListener('mousemove', (e) => {
+                tooltip.style.left = e.pageX + 'px';
+                tooltip.style.top = (e.pageY - 12) + 'px';
+            });
+
+            el.addEventListener('mouseleave', () => {
+                tooltip.style.opacity = '0';
+            });
+        });
+    }
+
+    /**
+     * Processes RAM cached diary entries to calculate analytics metrics.
+     */
+    function getAnalyticsStats() {
+        const stats = {
+            totalEntries: cachedEntries.length,
+            totalWords: 0,
+            avgMood: 0,
+            avgWordCount: 0,
+            currentStreak: 0,
+            longestStreak: 0,
+            wellnessScore: 0,
+            moodCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+            weekdayMoods: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 0: [] },
+            tagStats: {}
+        };
+
+        if (cachedEntries.length === 0) return stats;
+
+        let moodSum = 0;
+        const activeDates = new Set();
+
+        cachedEntries.forEach(entry => {
+            const words = countWordsInHtml(entry.title + ' ' + (entry.content || ''));
+            stats.totalWords += words;
+
+            const mood = Number(entry.mood) || 3;
+            moodSum += mood;
+            stats.moodCounts[mood]++;
+
+            const entryDate = new Date(entry.date);
+            const dateStr = entryDate.toISOString().split('T')[0];
+            activeDates.add(dateStr);
+
+            const dayOfWeek = entryDate.getDay();
+            stats.weekdayMoods[dayOfWeek].push(mood);
+
+            if (entry.tags) {
+                entry.tags.forEach(tag => {
+                    if (!stats.tagStats[tag]) {
+                        stats.tagStats[tag] = { count: 0, moodSum: 0 };
+                    }
+                    stats.tagStats[tag].count++;
+                    stats.tagStats[tag].moodSum += mood;
+                });
+            }
+        });
+
+        stats.avgMood = Number((moodSum / stats.totalEntries).toFixed(1));
+        stats.avgWordCount = Math.round(stats.totalWords / stats.totalEntries);
+
+        // Streaks Calculation
+        const sortedDates = Array.from(activeDates).sort((a, b) => new Date(b) - new Date(a));
+        if (sortedDates.length > 0) {
+            let current = 0;
+            let longest = 0;
+            let tempStreak = 0;
+
+            const today = new Date().toISOString().split('T')[0];
+            const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+            const hasWrittenRecently = sortedDates.includes(today) || sortedDates.includes(yesterday);
+
+            let lastDate = null;
+            const ascDates = Array.from(activeDates).sort((a, b) => new Date(a) - new Date(b));
+            
+            ascDates.forEach(dateStr => {
+                const curDate = new Date(dateStr);
+                if (lastDate === null) {
+                    tempStreak = 1;
+                } else {
+                    const diffTime = Math.abs(curDate - lastDate);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    if (diffDays === 1) {
+                        tempStreak++;
+                    } else if (diffDays > 1) {
+                        tempStreak = 1;
+                    }
+                }
+                longest = Math.max(longest, tempStreak);
+                lastDate = curDate;
+            });
+
+            if (hasWrittenRecently) {
+                let checkDate = new Date(sortedDates[0]);
+                current = 1;
+                for (let i = 1; i < sortedDates.length; i++) {
+                    const prevDate = new Date(sortedDates[i]);
+                    const diffTime = Math.abs(checkDate - prevDate);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    if (diffDays === 1) {
+                        current++;
+                        checkDate = prevDate;
+                    } else {
+                        break;
+                    }
+                }
+            } else {
+                current = 0;
+            }
+
+            stats.currentStreak = current;
+            stats.longestStreak = longest;
+        }
+
+        // Wellness Score Engine
+        const last30Days = [];
+        for (let i = 0; i < 30; i++) {
+            const d = new Date(Date.now() - i * 86400000).toISOString().split('T')[0];
+            last30Days.push(d);
+        }
+        let active30DaysCount = 0;
+        last30Days.forEach(d => {
+            if (activeDates.has(d)) active30DaysCount++;
+        });
+        const consistencyPct = (active30DaysCount / 30) * 100;
+        const moodPct = ((stats.avgMood - 1) / 4) * 100;
+        stats.wellnessScore = Math.round((0.4 * consistencyPct) + (0.6 * moodPct));
+
+        return stats;
+    }
+
+    /**
+     * Draws interactive SVG Mood Trend bezier path.
+     */
+    function drawMoodTrendChart() {
+        const box = document.getElementById('trend-chart-box');
+        if (!box) return;
+
+        const limit = analyticsDaysLimit;
+        const entries = [...cachedEntries].reverse();
+        const slicedEntries = entries.slice(-limit);
+
+        if (slicedEntries.length === 0) {
+            box.innerHTML = `<div style="display: flex; height: 100%; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 0.9rem;">No diary entries to display trend</div>`;
+            return;
+        }
+
+        let svg = `<svg viewBox="0 0 600 220" width="100%" height="100%">
+            <defs>
+                <linearGradient id="trend-area-grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.22"/>
+                    <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.0"/>
+                </linearGradient>
+                <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+                    <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="var(--accent)" flood-opacity="0.15"/>
+                </filter>
+            </defs>
+            
+            <line x1="40" y1="20" x2="580" y2="20" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="40" y1="61.25" x2="580" y2="61.25" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="40" y1="102.5" x2="580" y2="102.5" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="40" y1="143.75" x2="580" y2="143.75" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="40" y1="185" x2="580" y2="185" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+            
+            <text x="25" y="23" fill="var(--text-muted)" font-size="8.5" text-anchor="end">Great</text>
+            <text x="25" y="64" fill="var(--text-muted)" font-size="8.5" text-anchor="end">Good</text>
+            <text x="25" y="105" fill="var(--text-muted)" font-size="8.5" text-anchor="end">Okay</text>
+            <text x="25" y="146" fill="var(--text-muted)" font-size="8.5" text-anchor="end">Bad</text>
+            <text x="25" y="187" fill="var(--text-muted)" font-size="8.5" text-anchor="end">Awful</text>
+        `;
+
+        const points = [];
+        slicedEntries.forEach((entry, idx) => {
+            let x = 310;
+            if (slicedEntries.length > 1) {
+                x = 40 + idx * (540 / (slicedEntries.length - 1));
+            }
+            const mood = Number(entry.mood) || 3;
+            const y = 20 + (5 - mood) * 41.25;
+            points.push({ x, y, entry });
+        });
+
+        if (points.length > 1) {
+            let d = `M ${points[0].x} ${points[0].y}`;
+            for (let i = 0; i < points.length - 1; i++) {
+                const p1 = points[i];
+                const p2 = points[i + 1];
+                const cp1x = p1.x + (p2.x - p1.x) / 2;
+                const cp1y = p1.y;
+                const cp2x = p2.x - (p2.x - p1.x) / 2;
+                const cp2y = p2.y;
+                d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+            }
+
+            const areaD = d + ` L ${points[points.length - 1].x} 185 L ${points[0].x} 185 Z`;
+
+            svg += `<path class="chart-area" d="${areaD}" fill="url(#trend-area-grad)"></path>`;
+            svg += `<path class="chart-line" d="${d}" stroke="var(--accent)" filter="url(#shadow)"></path>`;
+        }
+
+        points.forEach((pt, idx) => {
+            const date = new Date(pt.entry.date);
+            const labelStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            
+            let showLabel = true;
+            if (points.length > 7) {
+                showLabel = (idx === 0 || idx === points.length - 1 || idx % Math.ceil(points.length / 5) === 0);
+            }
+
+            if (showLabel) {
+                svg += `<text x="${pt.x}" y="206" fill="var(--text-muted)" font-size="8.5" text-anchor="middle">${labelStr}</text>`;
+                svg += `<line x1="${pt.x}" y1="185" x2="${pt.x}" y2="190" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
+            }
+
+            const MOOD_EMOJIS = { 1: '😢', 2: '😕', 3: '😐', 4: '🙂', 5: '😊' };
+            const MOOD_NAMES = { 1: 'Awful', 2: 'Bad', 3: 'Okay', 4: 'Good', 5: 'Great' };
+            const formattedDate = date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+
+            const title = escapeHtml(pt.entry.title || 'Untitled');
+            const wordsCount = countWordsInHtml(pt.entry.content || '') + countWordsInHtml(pt.entry.title || '');
+            const emoji = MOOD_EMOJIS[pt.entry.mood] || '😐';
+            const moodName = MOOD_NAMES[pt.entry.mood] || 'Okay';
+
+            svg += `<circle class="chart-dot" cx="${pt.x}" cy="${pt.y}" r="5.5" 
+                data-date="${formattedDate}" 
+                data-title="${title}" 
+                data-words="${wordsCount}"
+                data-mood="${emoji} ${moodName}"
+            ></circle>`;
+        });
+
+        svg += `</svg>`;
+        box.innerHTML = svg;
+
+        bindChartTooltips(box.querySelectorAll('.chart-dot'));
+    }
+
+    /**
+     * Draws interactive SVG Donut Chart for mood breakdowns.
+     */
+    function drawMoodDonutChart(stats) {
+        const box = document.getElementById('donut-chart-box');
+        const legend = document.getElementById('donut-legend');
+        if (!box || !legend) return;
+
+        if (stats.totalEntries === 0) {
+            box.innerHTML = `<div style="display: flex; height: 100%; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 0.85rem;">No data</div>`;
+            legend.innerHTML = '';
+            return;
+        }
+
+        const MOOD_EMOJIS = { 1: '😢', 2: '😕', 3: '😐', 4: '🙂', 5: '😊' };
+        const MOOD_NAMES = { 1: 'Awful', 2: 'Bad', 3: 'Okay', 4: 'Good', 5: 'Great' };
+        const MOOD_COLORS = {
+            1: 'var(--mood-1, #ef4444)',
+            2: 'var(--mood-2, #f59e0b)',
+            3: 'var(--mood-3, #eab308)',
+            4: 'var(--mood-4, #10b981)',
+            5: 'var(--mood-5, #3b82f6)'
+        };
+
+        const total = stats.totalEntries;
+        const radius = 30;
+        const circumference = 2 * Math.PI * radius;
+        
+        let svg = `<svg viewBox="0 0 140 140" width="100%" height="100%">
+            <circle cx="70" cy="70" r="${radius}" fill="transparent" stroke="rgba(255,255,255,0.04)" stroke-width="6.5"></circle>
+        `;
+
+        let accumulatedLength = 0;
+        let legendHtml = '';
+
+        for (let mood = 5; mood >= 1; mood--) {
+            const count = stats.moodCounts[mood] || 0;
+            const percentage = (count / total) * 100;
+
+            if (count > 0) {
+                const strokeLength = (count / total) * circumference;
+                const strokeOffset = circumference - strokeLength + accumulatedLength;
+                
+                svg += `
+                    <circle class="donut-slice" cx="70" cy="70" r="${radius}"
+                        fill="transparent"
+                        stroke="${MOOD_COLORS[mood]}"
+                        stroke-width="6.5"
+                        stroke-dasharray="${strokeLength} ${circumference}"
+                        stroke-dashoffset="${strokeOffset}"
+                        stroke-linecap="round"
+                        transform="rotate(-90 70 70)"
+                        data-mood="${MOOD_EMOJIS[mood]} ${MOOD_NAMES[mood]}"
+                        data-count="${count} entry(ies)"
+                        data-pct="${percentage.toFixed(0)}%"
+                    ></circle>
+                `;
+                accumulatedLength += strokeLength;
+            }
+
+            const pctStr = count > 0 ? `${percentage.toFixed(0)}%` : '0%';
+            legendHtml += `
+                <div class="flex align-center justify-between" style="opacity: ${count > 0 ? 1 : 0.35};">
+                    <div class="flex align-center" style="gap: 6px;">
+                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${MOOD_COLORS[mood]};"></span>
+                        <span>${MOOD_EMOJIS[mood]} ${MOOD_NAMES[mood]}</span>
+                    </div>
+                    <span style="font-weight: 600;">${pctStr} (${count})</span>
+                </div>
+            `;
+        }
+
+        svg += `</svg>`;
+        box.innerHTML = svg;
+        legend.innerHTML = legendHtml;
+
+        bindChartTooltips(box.querySelectorAll('.donut-slice'));
+    }
+
+    /**
+     * Draws interactive SVG Bar Chart for weekday averages.
+     */
+    function drawWeekdayBarChart(stats) {
+        const box = document.getElementById('weekday-chart-box');
+        if (!box) return;
+
+        if (stats.totalEntries === 0) {
+            box.innerHTML = `<div style="display: flex; height: 100%; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 0.85rem;">No data</div>`;
+            return;
+        }
+
+        const daysOrder = [1, 2, 3, 4, 5, 6, 0];
+        const dayLabels = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 0: 'Sun' };
+
+        let svg = `<svg viewBox="0 0 400 160" width="100%" height="100%">
+            <line x1="30" y1="15" x2="390" y2="15" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="30" y1="45" x2="390" y2="45" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="30" y1="75" x2="390" y2="75" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="30" y1="105" x2="390" y2="105" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="30" y1="135" x2="390" y2="135" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+            
+            <text x="20" y="18" fill="var(--text-muted)" font-size="8" text-anchor="end">5</text>
+            <text x="20" y="78" fill="var(--text-muted)" font-size="8" text-anchor="end">3</text>
+            <text x="20" y="138" fill="var(--text-muted)" font-size="8" text-anchor="end">1</text>
+        `;
+
+        daysOrder.forEach((day, idx) => {
+            const moodsList = stats.weekdayMoods[day] || [];
+            const count = moodsList.length;
+            const avg = count > 0 ? moodsList.reduce((a, b) => a + b, 0) / count : 0;
+
+            const x = 30 + idx * 51.4 + 13.7;
+            const height = avg * 24; // mapping 5 mood max to 120px height
+            const y = 135 - height;
+
+            if (height > 0) {
+                svg += `
+                    <rect class="bar-column" x="${x}" y="${y}" width="24" height="${height}" rx="4"
+                        data-day="${dayLabels[day]}"
+                        data-avg="${avg.toFixed(1)}"
+                        data-count="${count} entry(ies)"
+                    ></rect>
+                `;
+            } else {
+                svg += `
+                    <circle cx="${x + 12}" cy="130" r="2.5" fill="rgba(255,255,255,0.12)"></circle>
+                `;
+            }
+
+            svg += `
+                <text x="${x + 12}" y="152" fill="var(--text-muted)" font-size="9" text-anchor="middle">${dayLabels[day]}</text>
+            `;
+        });
+
+        svg += `</svg>`;
+        box.innerHTML = svg;
+
+        bindChartTooltips(box.querySelectorAll('.bar-column'));
+    }
+
+    /**
+     * Draws a 1-year contribution grid heatmap.
+     */
+    function drawContributionHeatmap() {
+        const box = document.getElementById('heatmap-chart-box');
+        if (!box) return;
+
+        const dayWords = {};
+        const dayEntriesCount = {};
+        cachedEntries.forEach(entry => {
+            const dStr = new Date(entry.date).toISOString().split('T')[0];
+            const words = countWordsInHtml(entry.title + ' ' + (entry.content || ''));
+            dayWords[dStr] = (dayWords[dStr] || 0) + words;
+            dayEntriesCount[dStr] = (dayEntriesCount[dStr] || 0) + 1;
+        });
+
+        const today = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 364 - startDate.getDay());
+
+        let svg = `<svg viewBox="0 0 720 120" width="100%" height="100%">
+            <text x="8" y="30" fill="var(--text-muted)" font-size="8" text-anchor="start">Mon</text>
+            <text x="8" y="54" fill="var(--text-muted)" font-size="8" text-anchor="start">Wed</text>
+            <text x="8" y="78" fill="var(--text-muted)" font-size="8" text-anchor="start">Fri</text>
+        `;
+
+        const monthPositions = {};
+
+        for (let col = 0; col < 53; col++) {
+            for (let row = 0; row < 7; row++) {
+                const curDate = new Date(startDate);
+                curDate.setDate(startDate.getDate() + col * 7 + row);
+
+                const dStr = curDate.toISOString().split('T')[0];
+                const isFuture = curDate > today;
+
+                if (isFuture) continue;
+
+                if (row === 0) {
+                    const monthName = curDate.toLocaleDateString('en-US', { month: 'short' });
+                    if (!monthPositions[monthName] && col > 0 && col < 51) {
+                        monthPositions[monthName] = col;
+                    }
+                }
+
+                const words = dayWords[dStr] || 0;
+                const entriesCount = dayEntriesCount[dStr] || 0;
+
+                let fill = 'rgba(255, 255, 255, 0.04)';
+                let labelLevel = 'no entries';
+                if (words > 0) {
+                    if (words <= 100) {
+                        fill = 'rgba(107, 127, 215, 0.25)';
+                        labelLevel = 'light activity';
+                    } else if (words <= 300) {
+                        fill = 'rgba(107, 127, 215, 0.5)';
+                        labelLevel = 'moderate activity';
+                    } else if (words <= 600) {
+                        fill = '#6B7FD7';
+                        labelLevel = 'active';
+                    } else {
+                        fill = '#4D5FA7';
+                        labelLevel = 'highly active';
+                    }
+                }
+
+                const x = 32 + col * 12;
+                const y = 15 + row * 12;
+
+                const formattedDate = curDate.toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+
+                svg += `
+                    <rect class="heatmap-cell" x="${x}" y="${y}" width="10" height="10" 
+                        fill="${fill}"
+                        data-date="${formattedDate}"
+                        data-words="${words}"
+                        data-entries="${entriesCount}"
+                        data-level="${labelLevel}"
+                    ></rect>
+                `;
+            }
+        }
+
+        for (const [monthName, colIdx] of Object.entries(monthPositions)) {
+            const x = 32 + colIdx * 12;
+            svg += `<text x="${x}" y="10" fill="var(--text-muted)" font-size="8" text-anchor="start">${monthName}</text>`;
+        }
+
+        svg += `</svg>`;
+        box.innerHTML = svg;
+
+        // Bind custom tooltip listener for heatmap
+        const heatmapCells = box.querySelectorAll('.heatmap-cell');
+        heatmapCells.forEach(cell => {
+            cell.addEventListener('mouseover', (e) => {
+                const date = cell.dataset.date;
+                const words = cell.dataset.words;
+                const entriesCount = cell.dataset.entries;
+                const level = cell.dataset.level;
+                const tooltip = document.getElementById('chart-tooltip');
+                if (tooltip) {
+                    tooltip.innerHTML = `
+                        <h5>${date}</h5>
+                        <p>${entriesCount} entry(ies) · ${words} words (${level})</p>
+                    `;
+                    tooltip.style.opacity = '1';
+                }
+            });
+
+            cell.addEventListener('mousemove', (e) => {
+                const tooltip = document.getElementById('chart-tooltip');
+                if (tooltip) {
+                    tooltip.style.left = e.pageX + 'px';
+                    tooltip.style.top = (e.pageY - 10) + 'px';
+                }
+            });
+
+            cell.addEventListener('mouseleave', () => {
+                const tooltip = document.getElementById('chart-tooltip');
+                if (tooltip) tooltip.style.opacity = '0';
+            });
+        });
+    }
+
+    /**
+     * Entrypoint rendering function for the entire Insights Dashboard tab.
+     */
+    function renderAnalytics() {
+        const view = document.getElementById('view-analytics');
+        if (!view || view.style.display === 'none') return;
+
+        const stats = getAnalyticsStats();
+
+        // 1. Wellness Progress Circle
+        const wellnessRingFill = document.getElementById('wellness-ring-fill');
+        const wellnessScoreVal = document.getElementById('wellness-score-value');
+        const wellnessScoreLabel = document.getElementById('wellness-score-label');
+
+        if (wellnessRingFill && wellnessScoreVal && wellnessScoreLabel) {
+            const score = stats.wellnessScore;
+            wellnessRingFill.setAttribute('stroke-dasharray', `${score}, 100`);
+            wellnessScoreVal.textContent = `${score}%`;
+
+            let label = 'Reflective';
+            if (score >= 80) label = 'Excellent Vibe ✨';
+            else if (score >= 60) label = 'Good Consistency 👍';
+            else if (score >= 40) label = 'Steady Progress 🌱';
+            else if (score > 0) label = 'Needs Focus 🔍';
+            else label = 'Write first entry';
+            
+            wellnessScoreLabel.textContent = label;
+        }
+
+        // 2. Writing Streaks Card
+        const streakValue = document.getElementById('analytics-streak-value');
+        const longestStreak = document.getElementById('analytics-longest-streak');
+        if (streakValue && longestStreak) {
+            streakValue.textContent = `${stats.currentStreak} day${stats.currentStreak !== 1 ? 's' : ''}`;
+            longestStreak.textContent = `Longest: ${stats.longestStreak} day${stats.longestStreak !== 1 ? 's' : ''}`;
+        }
+
+        // 3. Total Words & Averages
+        const wordsValue = document.getElementById('analytics-words-value');
+        const entriesValue = document.getElementById('analytics-entries-value');
+        if (wordsValue && entriesValue) {
+            wordsValue.textContent = `${stats.totalWords.toLocaleString()} word${stats.totalWords !== 1 ? 's' : ''}`;
+            entriesValue.textContent = `${stats.totalEntries} entry${stats.totalEntries !== 1 ? 'ies' : ''} · ${stats.avgWordCount} avg`;
+        }
+
+        // 4. Mood Average Card
+        const avgMoodValue = document.getElementById('analytics-mood-value');
+        const avgMoodLabel = document.getElementById('analytics-mood-label');
+        const avgMoodEmoji = document.getElementById('analytics-mood-emoji');
+
+        if (avgMoodValue && avgMoodLabel && avgMoodEmoji) {
+            avgMoodValue.textContent = `${stats.avgMood.toFixed(1)} / 5.0`;
+
+            const MOOD_NAMES = { 1: 'Awful 😢', 2: 'Bad 😕', 3: 'Okay 😐', 4: 'Good 🙂', 5: 'Great 😊' };
+            const MOOD_EMOJIS = { 1: '😢', 2: '😕', 3: '😐', 4: '🙂', 5: '😊' };
+            const roundedMood = Math.round(stats.avgMood);
+            avgMoodLabel.textContent = MOOD_NAMES[roundedMood] || 'No entries yet';
+            avgMoodEmoji.textContent = MOOD_EMOJIS[roundedMood] || '😐';
+        }
+
+        // 5. Draw interactive charts
+        drawMoodTrendChart();
+        drawMoodDonutChart(stats);
+        drawWeekdayBarChart(stats);
+        drawContributionHeatmap();
+
+        // 6. Top Tags Correlation rankings
+        const tagBox = document.getElementById('tag-correlations-box');
+        if (tagBox) {
+            const sortedTags = Object.keys(stats.tagStats).sort((a, b) => stats.tagStats[b].count - stats.tagStats[a].count);
+            
+            if (sortedTags.length === 0) {
+                tagBox.innerHTML = `<span style="grid-column: span 2; font-size: 0.85rem; color: var(--text-secondary); text-align: center; padding: var(--space-md) 0;">No tags used yet</span>`;
+            } else {
+                tagBox.innerHTML = sortedTags.map(tag => {
+                    const tagData = stats.tagStats[tag];
+                    const tagAvgMood = tagData.moodSum / tagData.count;
+
+                    let fill = 'var(--mood-3)';
+                    if (tagAvgMood >= 4.5) fill = 'var(--mood-5)';
+                    else if (tagAvgMood >= 3.5) fill = 'var(--mood-4)';
+                    else if (tagAvgMood >= 2.5) fill = 'var(--mood-3)';
+                    else if (tagAvgMood >= 1.5) fill = 'var(--mood-2)';
+                    else fill = 'var(--mood-1)';
+
+                    const pctWidth = (tagAvgMood / 5.0) * 100;
+                    
+                    return `
+                        <div class="tag-correlation-card">
+                            <div class="flex justify-between align-center">
+                                <span style="font-weight: 600; font-size: 0.9rem; color: var(--accent);">#${tag}</span>
+                                <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 500;">${tagData.count} entry(ies)</span>
+                            </div>
+                            <div class="flex align-center justify-between" style="font-size: 0.75rem; margin-top: 4px;">
+                                <span style="color: var(--text-secondary);">Avg Mood:</span>
+                                <span style="font-weight: 700;">${tagAvgMood.toFixed(1)} / 5.0</span>
+                            </div>
+                            <div class="correlation-progress-bar" style="margin-top: 4px;">
+                                <div class="correlation-progress-fill" style="width: ${pctWidth}%; background-color: ${fill};"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+    }
+
     /**
      * Binds all dashboard, search, and editor event handlers for Step 4.
      */
@@ -1780,6 +2457,25 @@ const HelloApp = (function() {
                 }
             });
         });
+
+        // 7 Days / 30 Days Trend Switches
+        const btn7d = document.getElementById('btn-trend-7d');
+        const btn30d = document.getElementById('btn-trend-30d');
+        
+        if (btn7d && btn30d) {
+            btn7d.addEventListener('click', () => {
+                btn7d.classList.add('active');
+                btn30d.classList.remove('active');
+                analyticsDaysLimit = 7;
+                drawMoodTrendChart();
+            });
+            btn30d.addEventListener('click', () => {
+                btn30d.classList.add('active');
+                btn7d.classList.remove('active');
+                analyticsDaysLimit = 30;
+                drawMoodTrendChart();
+            });
+        }
     }
 
     /**
@@ -2041,10 +2737,13 @@ const HelloApp = (function() {
         getSessionKey,
         showScreen,
         checkLockoutState,
-        loadAndRenderDashboard
+        loadAndRenderDashboard,
+        renderAnalytics
     };
 
 })();
+
+window.HelloApp = HelloApp;
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {

@@ -276,6 +276,11 @@ function switchDashboardView(viewId) {
     document.querySelectorAll('#screen-dashboard .bottom-nav-item').forEach(item => {
         item.classList.toggle('active', item.dataset.view === viewId);
     });
+
+    // Redraw SVG charts if switching to analytics tab
+    if (viewId === 'analytics' && window.HelloApp && window.HelloApp.renderAnalytics) {
+        window.HelloApp.renderAnalytics();
+    }
 }
 
 // On Loaded Initialization
