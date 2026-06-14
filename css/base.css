@@ -60,6 +60,12 @@ body {
     -moz-osx-font-smoothing: grayscale;
     transition: color var(--transition-slow);
     user-select: none;
+    -webkit-user-select: none;
+}
+
+input, textarea, [contenteditable="true"], [contenteditable="true"] * {
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 /* Scrollbars styling */

@@ -1789,6 +1789,16 @@ const HelloApp = (function() {
         const editorField = document.getElementById('rich-editor-field');
         if (!editorField) return;
 
+        // Prevent toolbar/dropdown clicks from stealing focus/selection from the editor field
+        document.querySelectorAll('.editor-toolbar, .editor-dropdown').forEach(container => {
+            container.addEventListener('mousedown', (e) => {
+                // Do not prevent default for actual input fields (like inputs or textareas)
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                }
+            });
+        });
+
         // 1. Text input listener for stats & dirty state
         editorField.addEventListener('input', () => {
             editorDirty = true;
