@@ -3319,6 +3319,10 @@ const HelloApp = (function() {
             }
             
             particles = []; 
+            const maxParticles = 65;
+            for (let i = 0; i < maxParticles; i++) {
+                particles.push(new Particle());
+            }
         }
 
         class Particle {
