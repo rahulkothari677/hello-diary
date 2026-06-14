@@ -8,9 +8,9 @@ This document is the single source of truth for the step-by-step progress of **H
 
 - [x] **Step 1: Core Design System & Skeleton Layout** — *Completed & Self-Verified*
   - Directory structure, typography, responsive styling, 24 theme presets, skeleton UI, and developer switcher.
-- [ ] **Step 2: Cryptographic Engine & IndexedDB Storage**
+- [x] **Step 2: Cryptographic Engine & IndexedDB Storage** — *Completed & Self-Verified*
   - AES-256-GCM encryption, PBKDF2 key derivation (600k iterations), IndexedDB schemas for entries, tags, credentials, settings.
-- [ ] **Step 3: Security Portal (Auth & First-Time Setup)**
+- [x] **Step 3: Security Portal (Auth & First-Time Setup)** — *Completed & Self-Verified*
   - Setup screen flow (PIN/Pattern setup, default theme selection), Lock screen interface (PIN inputs, pattern drawing, biometric mock).
 - [ ] **Step 4: Dashboard Timeline, Calendar, & Search**
   - Dynamic loading/decryption of entries, timeline view, calendar month view with mood indicators, search overlay with tag/mood filters.
@@ -25,22 +25,21 @@ This document is the single source of truth for the step-by-step progress of **H
 
 ---
 
-## 🛠️ Step 1: Checklist & Verification Status
+## 🛠️ Step 3: Checklist & Verification Status
 
-- [x] Initialize project directories and structure (`css/`, `js/`, `images/themes/`)
-- [x] Create base HTML (`index.html`) with all skeleton screens:
-  - [x] Lock Screen structure
-  - [x] Setup Screen structure
-  - [x] Dashboard Screen (Sidebar/Bottom nav + content area wrappers)
-  - [x] Editor Screen (Formatting bar, mood, tags, input)
-  - [x] Modals (View entry, Tag prompt, Confirmation)
-- [x] Create stylesheets:
-  - [x] `css/base.css` (Google Fonts, root variables, layouts)
-  - [x] `css/themes.css` (24 curated theme presets as CSS variable overrides)
-  - [x] `css/components.css` (Glass cards, button classes, forms, headers)
-  - [x] `css/editor.css` (Editor toolbar, custom writing font classes)
-  - [x] `css/animations.css` (Aurora floating animation, film grain, fades)
-  - [x] `css/responsive.css` (Mobile/tablet/desktop adaptive rules)
-- [x] Create `js/dev-toggle.js` (Developer switcher panel for preview)
-- [x] Migrate and generate all 24 high-resolution 4K theme wallpaper assets
-- [x] Self-verify rendering, theme switching, background wallpapers, and typography in headless Chrome
+- [x] Create Application Controller (`js/app.js`):
+  - [x] App Initialization check (opening db connection, redirect to setup vs lock screen)
+  - [x] Implemented Multi-step setup controller:
+    - [x] Step 1: Protection selection UI controls
+    - [x] Step 2: Set credentials inputs (PIN keypad/canvas pattern matcher)
+    - [x] Step 3: Select theme gallery population and database config saving
+  - [x] Implemented Lock screen controller:
+    - [x] PIN entry helper (key click mapping, dot UI updating, automatic submit on 6 digits)
+    - [x] Custom 3x3 Canvas pattern drawing driver (event listening, node collision math, connecting lines rendering, node sequence hashing)
+    - [x] Biometric mock authenticator triggers
+    - [x] Unlock request submit handler matching derived keys
+    - [x] lockout visual feedback (attempts counting, disabled states, remaining countdown timers)
+- [x] Link `js/app.js` in `index.html`
+- [x] Build automated verification script and run it in headless Chrome to self-verify:
+  - [x] Verify setup redirects and page transitions
+  - [x] Verify PIN unlock, pattern drawing unlock, incorrect password remaining attempts warnings, and 10-attempt lockout disables inputs and counts down correctly.

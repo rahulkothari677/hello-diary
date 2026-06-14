@@ -132,6 +132,25 @@ const HelloDB = (function() {
     }
 
     /**
+     * Retrieves the current lockout configuration from database.
+     */
+    async function getLockoutConfig() {
+        const db = await initDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['credentials'], 'readonly');
+            const store = transaction.objectStore('credentials');
+            const request = store.get('auth_config');
+
+            request.onsuccess = (event) => {
+                const result = event.target.result;
+                resolve(result ? { failedAttempts: result.failedAttempts || 0, lockoutUntil: result.lockoutUntil || 0 } : null);
+            };
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+
+    /**
      * Verifies the user credentials and returns the derived key on success.
      * Implements a lockout mechanism of 15 minutes after 10 failed attempts.
      */
@@ -455,6 +474,7 @@ const HelloDB = (function() {
         initDatabase,
         saveCredentials,
         hasCredentials,
+        getLockoutConfig,
         verifyCredentials,
         insertEntry,
         updateEntry,

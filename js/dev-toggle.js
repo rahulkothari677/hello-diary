@@ -520,139 +520,142 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Setup screen navigation buttons flow
-    const next1 = document.getElementById('btn-setup-next-1');
-    const next2 = document.getElementById('btn-setup-next-2');
-    const back2 = document.getElementById('btn-setup-back-2');
-    const back3 = document.getElementById('btn-setup-back-3');
-    const finishSetup = document.getElementById('btn-setup-finish');
-    
-    const setupStep1 = document.getElementById('setup-step-1');
-    const setupStep2 = document.getElementById('setup-step-2');
-    const setupStep3 = document.getElementById('setup-step-3');
-    const progressFill = document.getElementById('setup-progress-fill');
-    
-    if (next1 && setupStep1 && setupStep2 && progressFill) {
-        next1.addEventListener('click', () => {
-            setupStep1.classList.remove('active');
-            setupStep2.classList.add('active');
-            progressFill.style.width = '66.6%';
-            
-            // Sync step 2 title based on selected method
-            const selectedMethod = document.querySelector('.security-option.selected').dataset.method;
-            const titleEl = document.getElementById('setup-step-2-title');
-            const descEl = document.getElementById('setup-step-2-desc');
-            const pinArea = document.getElementById('setup-pin-container');
-            const patArea = document.getElementById('setup-pattern-container');
-            
-            if (selectedMethod === 'pin') {
-                titleEl.textContent = 'Step 2: Create a PIN';
-                descEl.textContent = 'Input a secure 6-digit PIN code.';
-                pinArea.style.display = 'flex';
-                patArea.style.display = 'none';
-            } else {
-                titleEl.textContent = 'Step 2: Draw a Pattern';
-                descEl.textContent = 'Draw a pattern connecting at least 4 nodes.';
-                pinArea.style.display = 'none';
-                patArea.style.display = 'flex';
-            }
+    // Setup screen navigation buttons flow (only if production HelloApp is not active)
+    if (!window.HelloApp) {
+        const next1 = document.getElementById('btn-setup-next-1');
+        const next2 = document.getElementById('btn-setup-next-2');
+        const back2 = document.getElementById('btn-setup-back-2');
+        const back3 = document.getElementById('btn-setup-back-3');
+        const finishSetup = document.getElementById('btn-setup-finish');
+        
+        const setupStep1 = document.getElementById('setup-step-1');
+        const setupStep2 = document.getElementById('setup-step-2');
+        const setupStep3 = document.getElementById('setup-step-3');
+        const progressFill = document.getElementById('setup-progress-fill');
+        
+        if (next1 && setupStep1 && setupStep2 && progressFill) {
+            next1.addEventListener('click', () => {
+                setupStep1.classList.remove('active');
+                setupStep2.classList.add('active');
+                progressFill.style.width = '66.6%';
+                
+                // Sync step 2 title based on selected method
+                const selectedMethod = document.querySelector('.security-option.selected').dataset.method;
+                const titleEl = document.getElementById('setup-step-2-title');
+                const descEl = document.getElementById('setup-step-2-desc');
+                const pinArea = document.getElementById('setup-pin-container');
+                const patArea = document.getElementById('setup-pattern-container');
+                
+                if (selectedMethod === 'pin') {
+                    titleEl.textContent = 'Step 2: Create a PIN';
+                    descEl.textContent = 'Input a secure 6-digit PIN code.';
+                    pinArea.style.display = 'flex';
+                    patArea.style.display = 'none';
+                } else {
+                    titleEl.textContent = 'Step 2: Draw a Pattern';
+                    descEl.textContent = 'Draw a pattern connecting at least 4 nodes.';
+                    pinArea.style.display = 'none';
+                    patArea.style.display = 'flex';
+                }
+            });
+        }
+        
+        if (back2 && setupStep1 && setupStep2 && progressFill) {
+            back2.addEventListener('click', () => {
+                setupStep2.classList.remove('active');
+                setupStep1.classList.add('active');
+                progressFill.style.width = '33.3%';
+            });
+        }
+        
+        if (next2 && setupStep2 && setupStep3 && progressFill) {
+            next2.addEventListener('click', () => {
+                setupStep2.classList.remove('active');
+                setupStep3.classList.add('active');
+                progressFill.style.width = '100%';
+            });
+        }
+        
+        if (back3 && setupStep2 && setupStep3 && progressFill) {
+            back3.addEventListener('click', () => {
+                setupStep3.classList.remove('active');
+                setupStep2.classList.add('active');
+                progressFill.style.width = '66.6%';
+            });
+        }
+        
+        if (finishSetup) {
+            finishSetup.addEventListener('click', () => {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById('screen-dashboard').classList.add('active');
+                switchDashboardView('timeline');
+                
+                const devSelect = document.querySelector('#dev-screens-toggle-panel select');
+                if (devSelect) devSelect.value = 'screen-dashboard';
+                showToast('Setup complete! Welcome to Hello Diary ✨');
+            });
+        }
+
+        // Toggle card selection in Setup Step 1
+        document.querySelectorAll('.security-option').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.security-option').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+            });
         });
-    }
-    
-    if (back2 && setupStep1 && setupStep2 && progressFill) {
-        back2.addEventListener('click', () => {
-            setupStep2.classList.remove('active');
-            setupStep1.classList.add('active');
-            progressFill.style.width = '33.3%';
-        });
-    }
-    
-    if (next2 && setupStep2 && setupStep3 && progressFill) {
-        next2.addEventListener('click', () => {
-            setupStep2.classList.remove('active');
-            setupStep3.classList.add('active');
-            progressFill.style.width = '100%';
-        });
-    }
-    
-    if (back3 && setupStep2 && setupStep3 && progressFill) {
-        back3.addEventListener('click', () => {
-            setupStep3.classList.remove('active');
-            setupStep2.classList.add('active');
-            progressFill.style.width = '66.6%';
-        });
-    }
-    
-    if (finishSetup) {
-        finishSetup.addEventListener('click', () => {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById('screen-dashboard').classList.add('active');
-            switchDashboardView('timeline');
-            
-            const devSelect = document.querySelector('#dev-screens-toggle-panel select');
-            if (devSelect) devSelect.value = 'screen-dashboard';
-            showToast('Setup complete! Welcome to Hello Diary ✨');
+        
+        // Auth Lock Pin Dots mock display behavior
+        let enteredPin = '';
+        const pinDots = document.querySelectorAll('#screen-lock .pin-dot');
+        document.querySelectorAll('#screen-lock .pin-key').forEach(key => {
+            key.addEventListener('click', () => {
+                const val = key.dataset.value;
+                if (val === 'back') {
+                    enteredPin = enteredPin.slice(0, -1);
+                } else if (enteredPin.length < 6) {
+                    enteredPin += val;
+                }
+                
+                // Render dot active states
+                pinDots.forEach((dot, idx) => {
+                    dot.classList.toggle('filled', idx < enteredPin.length);
+                });
+                
+                // Clear message
+                document.getElementById('pin-error-msg').textContent = '';
+                
+                // Check if entered pin matches mock passcode
+                if (enteredPin.length === 6) {
+                    if (enteredPin === '111111') {
+                        // Correct passcode
+                        enteredPin = '';
+                        pinDots.forEach(dot => dot.classList.remove('filled'));
+                        
+                        // Trigger unlock success toast
+                        showToast('Welcome back to your Sanctuary! 🌙');
+                        
+                        // Switch screen to dashboard timeline
+                        document.querySelector('#dev-screens-toggle-panel select').value = 'screen-dashboard';
+                        document.getElementById('screen-lock').classList.remove('active');
+                        document.getElementById('screen-dashboard').classList.add('active');
+                        switchDashboardView('timeline');
+                    } else {
+                        // Wrong passcode
+                        enteredPin = '';
+                        pinDots.forEach(dot => {
+                            dot.classList.remove('filled');
+                            // Trigger shake animation
+                            dot.style.animation = 'none';
+                            void dot.offsetWidth; // trigger reflow
+                            dot.style.animation = 'shake 0.3s ease';
+                        });
+                        document.getElementById('pin-error-msg').textContent = 'Invalid PIN code. Try "111111" for dev testing.';
+                    }
+                }
+            });
         });
     }
 
-    // Toggle card selection in Setup Step 1
-    document.querySelectorAll('.security-option').forEach(card => {
-        card.addEventListener('click', () => {
-            document.querySelectorAll('.security-option').forEach(c => c.classList.remove('selected'));
-            card.classList.add('selected');
-        });
-    });
-    
-    // Auth Lock Pin Dots mock display behavior
-    let enteredPin = '';
-    const pinDots = document.querySelectorAll('#screen-lock .pin-dot');
-    document.querySelectorAll('#screen-lock .pin-key').forEach(key => {
-        key.addEventListener('click', () => {
-            const val = key.dataset.value;
-            if (val === 'back') {
-                enteredPin = enteredPin.slice(0, -1);
-            } else if (enteredPin.length < 6) {
-                enteredPin += val;
-            }
-            
-            // Render dot active states
-            pinDots.forEach((dot, idx) => {
-                dot.classList.toggle('filled', idx < enteredPin.length);
-            });
-            
-            // Clear message
-            document.getElementById('pin-error-msg').textContent = '';
-            
-            // Check if entered pin matches mock passcode
-            if (enteredPin.length === 6) {
-                if (enteredPin === '111111') {
-                    // Correct passcode
-                    enteredPin = '';
-                    pinDots.forEach(dot => dot.classList.remove('filled'));
-                    
-                    // Trigger unlock success toast
-                    showToast('Welcome back to your Sanctuary! 🌙');
-                    
-                    // Switch screen to dashboard timeline
-                    document.querySelector('#dev-screens-toggle-panel select').value = 'screen-dashboard';
-                    document.getElementById('screen-lock').classList.remove('active');
-                    document.getElementById('screen-dashboard').classList.add('active');
-                    switchDashboardView('timeline');
-                } else {
-                    // Wrong passcode
-                    enteredPin = '';
-                    pinDots.forEach(dot => {
-                        dot.classList.remove('filled');
-                        // Trigger shake animation
-                        dot.style.animation = 'none';
-                        void dot.offsetWidth; // trigger reflow
-                        dot.style.animation = 'shake 0.3s ease';
-                    });
-                    document.getElementById('pin-error-msg').textContent = 'Invalid PIN code. Try "111111" for dev testing.';
-                }
-            }
-        });
-    });
 
     // Auth screen sub-tabs toggles
     document.querySelectorAll('#screen-lock .auth-tab').forEach(tab => {
