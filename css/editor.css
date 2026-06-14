@@ -249,22 +249,23 @@
     color: var(--text-primary);
     transition: font-size 0.2s, font-family 0.2s;
     line-height: 1.8;
+    font-size: calc(var(--editor-font-size, 1.1rem) * var(--editor-font-scale, 1));
 }
 
 /* Selected fonts in action */
 .editor-content.font-merriweather { font-family: 'Merriweather', Georgia, serif; }
 .editor-content.font-lora { font-family: 'Lora', serif; }
 .editor-content.font-inter { font-family: 'Inter', sans-serif; }
-.editor-content.font-caveat { font-family: 'Caveat', cursive; font-size: 1.35em !important; }
-.editor-content.font-dancing { font-family: 'Dancing Script', cursive; font-size: 1.35em !important; }
-.editor-content.font-pacifico { font-family: 'Pacifico', cursive; font-size: 1.25em !important; }
-.editor-content.font-mono { font-family: 'JetBrains Mono', monospace; font-size: 0.9em !important; }
+.editor-content.font-caveat { font-family: 'Caveat', cursive; --editor-font-scale: 1.35; }
+.editor-content.font-dancing { font-family: 'Dancing Script', cursive; --editor-font-scale: 1.35; }
+.editor-content.font-pacifico { font-family: 'Pacifico', cursive; --editor-font-scale: 1.25; }
+.editor-content.font-mono { font-family: 'JetBrains Mono', monospace; --editor-font-scale: 0.9; }
 
 /* Font size modifiers */
-.editor-content.size-small { font-size: 0.9rem; }
-.editor-content.size-medium { font-size: 1.1rem; }
-.editor-content.size-large { font-size: 1.3rem; }
-.editor-content.size-xlarge { font-size: 1.5rem; }
+.editor-content.size-small { --editor-font-size: 0.9rem; }
+.editor-content.size-medium { --editor-font-size: 1.1rem; }
+.editor-content.size-large { --editor-font-size: 1.3rem; }
+.editor-content.size-xlarge { --editor-font-size: 1.5rem; }
 
 /* Placeholder for contenteditable */
 .editor-content:empty::before {
@@ -391,21 +392,21 @@
 /* --- Premium Font Classes --- */
 .editor-content.font-roboto { font-family: 'Roboto', sans-serif; }
 .editor-content.font-montserrat { font-family: 'Montserrat', sans-serif; }
-.editor-content.font-great-vibes { font-family: 'Great Vibes', cursive; font-size: 1.45em !important; }
+.editor-content.font-great-vibes { font-family: 'Great Vibes', cursive; --editor-font-scale: 1.45; }
 .editor-content.font-cinzel { font-family: 'Cinzel', serif; }
 .editor-content.font-cormorant { font-family: 'Cormorant Garamond', serif; }
 .editor-content.font-comfortaa { font-family: 'Comfortaa', cursive; }
-.editor-content.font-sacramento { font-family: 'Sacramento', cursive; font-size: 1.45em !important; }
+.editor-content.font-sacramento { font-family: 'Sacramento', cursive; --editor-font-scale: 1.45; }
 .editor-content.font-special-elite { font-family: 'Special Elite', cursive; }
-.editor-content.font-amatic { font-family: 'Amatic SC', cursive; font-size: 1.55em !important; font-weight: 700; }
+.editor-content.font-amatic { font-family: 'Amatic SC', cursive; --editor-font-scale: 1.55; font-weight: 700; }
 .editor-content.font-playfair { font-family: 'Playfair Display', serif; }
 .editor-content.font-outfit { font-family: 'Outfit', sans-serif; }
-.editor-content.font-architects { font-family: 'Architects Daughter', cursive; font-size: 1.15em !important; }
-.editor-content.font-abril { font-family: 'Abril Fatface', serif; font-size: 1.15em !important; }
+.editor-content.font-architects { font-family: 'Architects Daughter', cursive; --editor-font-scale: 1.15; }
+.editor-content.font-abril { font-family: 'Abril Fatface', serif; --editor-font-scale: 1.15; }
 .editor-content.font-poiret { font-family: 'Poiret One', cursive; font-weight: 600; }
 .editor-content.font-josefin { font-family: 'Josefin Sans', sans-serif; }
-.editor-content.font-satisfy { font-family: 'Satisfy', cursive; font-size: 1.35em !important; }
-.editor-content.font-shadows { font-family: 'Shadows Into Light', cursive; font-size: 1.25em !important; }
+.editor-content.font-satisfy { font-family: 'Satisfy', cursive; --editor-font-scale: 1.35; }
+.editor-content.font-shadows { font-family: 'Shadows Into Light', cursive; --editor-font-scale: 1.25; }
 
 /* --- Editor Dropdowns (Font & Size Picker) --- */
 .editor-dropdown {
