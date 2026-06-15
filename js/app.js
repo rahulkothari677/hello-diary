@@ -252,6 +252,13 @@ const HelloApp = (function() {
             // 1. Initialize DB Connection
             await HelloDB.initDatabase();
 
+            // Register PWA Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('[Service Worker] Registered:', reg.scope))
+                    .catch(err => console.error('[Service Worker] Registration failed:', err));
+            }
+
             // Load custom themes from database and populate THEMES array
             const customThemes = await HelloDB.getSetting('custom-themes');
             if (customThemes && Array.isArray(customThemes)) {
@@ -290,6 +297,7 @@ const HelloApp = (function() {
             initDashboardControllers();
             initEditorControllers();
             await initImmersiveControllers();
+            initStep8Features();
 
             // Start Auto-save Engine
             startAutoSaveInterval();
@@ -921,8 +929,16 @@ const HelloApp = (function() {
                 year: 'numeric'
             }).toUpperCase();
             
+            // Create wrapper container for swipe gestures
+            const container = document.createElement('div');
+            container.className = 'swipe-container';
+            
+            const deleteBg = document.createElement('div');
+            deleteBg.className = 'delete-swipe-bg';
+            deleteBg.textContent = 'Delete';
+            
             const card = document.createElement('div');
-            card.className = 'glass-card spring-hover';
+            card.className = 'swipe-card-content spring-hover';
             card.style.padding = 'var(--space-md)';
             card.style.display = 'flex';
             card.style.flexDirection = 'column';
@@ -952,10 +968,63 @@ const HelloApp = (function() {
             `;
             
             card.addEventListener('click', () => {
-                openViewModal(entry);
+                // If the card is currently swiped open, reset it on click instead of viewing details
+                if (card.style.transform === 'translateX(-80px)') {
+                    card.style.transform = 'translateX(0px)';
+                } else {
+                    openViewModal(entry);
+                }
             });
             
-            grid.appendChild(card);
+            // Touch Swipe Handlers for mobile swipe-to-delete
+            let startX = 0;
+            let currentX = 0;
+            let isSwiping = false;
+            
+            card.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                currentX = startX;
+                card.style.transition = 'none';
+                isSwiping = true;
+            }, { passive: true });
+            
+            card.addEventListener('touchmove', (e) => {
+                if (!isSwiping) return;
+                currentX = e.touches[0].clientX;
+                const diffX = currentX - startX;
+                
+                if (diffX < 0) {
+                    const translateVal = Math.max(diffX, -80);
+                    card.style.transform = `translateX(${translateVal}px)`;
+                } else {
+                    card.style.transform = 'translateX(0px)';
+                }
+            }, { passive: true });
+            
+            card.addEventListener('touchend', (e) => {
+                if (!isSwiping) return;
+                isSwiping = false;
+                card.style.transition = 'transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                const diffX = currentX - startX;
+                
+                if (diffX < -40) {
+                    card.style.transform = 'translateX(-80px)';
+                } else {
+                    card.style.transform = 'translateX(0px)';
+                }
+            }, { passive: true });
+            
+            deleteBg.addEventListener('click', (e) => {
+                e.stopPropagation();
+                activeEntryId = entry.id;
+                document.getElementById('confirm-modal-title').textContent = 'Delete entry?';
+                document.getElementById('confirm-modal-desc').textContent = 'This action is permanent and cannot be undone. Are you sure you want to delete this memory?';
+                document.getElementById('modal-confirm').classList.add('active');
+            });
+            
+            container.appendChild(deleteBg);
+            container.appendChild(card);
+            grid.appendChild(container);
         });
     }
 
@@ -3287,6 +3356,10 @@ const HelloApp = (function() {
             window.addEventListener('resize', resizeCanvas);
             resizeCanvas();
             
+            // Resolve and apply the initial theme particles
+            const currentTheme = localStorage.getItem('hello-diary-theme') || 'serene-dawn';
+            updateTheme(currentTheme);
+            
             startLoop();
         }
 
@@ -3298,10 +3371,11 @@ const HelloApp = (function() {
         }
 
         function updateTheme(themeId) {
-            const starsThemes = ['midnight-abyss', 'aurora-borealis', 'cosmic-universe', 'arctic-aurora', 'royal-purple'];
-            const petalsThemes = ['sakura-garden', 'cherry-blossom-night'];
-            const rainThemes = ['rainy-day', 'tropical-paradise', 'ocean-depths'];
-            const firefliesThemes = ['forest-sanctuary', 'autumn-harvest', 'golden-hour', 'animal-kingdom'];
+            // Mapping all 24 themes explicitly
+            const starsThemes = ['midnight-abyss', 'aurora-borealis', 'cosmic-universe', 'arctic-aurora', 'royal-purple', 'futuristic-neon', 'imagination', 'serene-dawn'];
+            const petalsThemes = ['sakura-garden', 'cherry-blossom-night', 'lavender-dream', 'love-romance'];
+            const rainThemes = ['rainy-day', 'tropical-paradise', 'ocean-depths', 'mountain-peak'];
+            const firefliesThemes = ['forest-sanctuary', 'autumn-harvest', 'golden-hour', 'animal-kingdom', 'sports-arena', 'steampunk'];
             const mistThemes = ['minimal-zen', 'vintage-typewriter'];
 
             if (starsThemes.includes(themeId)) {
@@ -3319,9 +3393,11 @@ const HelloApp = (function() {
             }
             
             particles = []; 
-            const maxParticles = 65;
-            for (let i = 0; i < maxParticles; i++) {
-                particles.push(new Particle());
+            if (canvas) {
+                const maxParticles = 65;
+                for (let i = 0; i < maxParticles; i++) {
+                    particles.push(new Particle());
+                }
             }
         }
 
@@ -3410,36 +3486,76 @@ const HelloApp = (function() {
                 ctx.save();
                 ctx.globalAlpha = Math.max(0, Math.min(1, this.alpha));
                 
+                const themeId = document.documentElement.getAttribute('data-theme') || 'serene-dawn';
+                
                 if (currentMode === 'stars') {
-                    ctx.fillStyle = '#FFFFFF';
+                    // Twinkling stars: white for dark themes, accent-colored for light themes
+                    const lightThemes = ['serene-dawn', 'sakura-garden', 'forest-sanctuary', 'lavender-dream', 'love-romance', 'mountain-peak', 'minimal-zen', 'vintage-typewriter'];
+                    if (lightThemes.includes(themeId)) {
+                        const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+                        ctx.fillStyle = accentColor || '#6B7FD7';
+                    } else {
+                        ctx.fillStyle = '#FFFFFF';
+                    }
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                     ctx.fill();
                 } else if (currentMode === 'petals') {
                     ctx.translate(this.x, this.y);
                     ctx.rotate((this.angle * Math.PI) / 180);
-                    ctx.fillStyle = '#FFC0CB'; 
+                    
+                    if (themeId === 'lavender-dream') {
+                        ctx.fillStyle = '#C3B1E1'; // Pastel lavender
+                    } else if (themeId === 'love-romance') {
+                        ctx.fillStyle = '#FF6B8B'; // Rose pink
+                    } else {
+                        ctx.fillStyle = '#FFC0CB'; // Sakura pink
+                    }
+                    
                     ctx.beginPath();
                     ctx.ellipse(0, 0, this.size, this.size / 2, 0, 0, Math.PI * 2);
                     ctx.fill();
                 } else if (currentMode === 'rain') {
-                    ctx.strokeStyle = 'rgba(174, 207, 238, 0.4)';
+                    if (themeId === 'mountain-peak') {
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'; // Snow
+                    } else {
+                        ctx.strokeStyle = 'rgba(174, 207, 238, 0.4)';
+                    }
                     ctx.lineWidth = 1;
                     ctx.beginPath();
                     ctx.moveTo(this.x, this.y);
                     ctx.lineTo(this.x + this.speedX * 1.5, this.y + this.speedY * 1.5);
                     ctx.stroke();
                 } else if (currentMode === 'fireflies') {
-                    ctx.fillStyle = 'rgba(235, 255, 120, 1)';
+                    let glowColor = 'rgba(235, 255, 120, 1)';
+                    let shadowColor = 'rgba(235, 255, 120, 0.8)';
+                    
+                    if (themeId === 'sports-arena') {
+                        glowColor = 'rgba(255, 60, 60, 1)'; 
+                        shadowColor = 'rgba(255, 60, 60, 0.8)';
+                    } else if (themeId === 'steampunk') {
+                        glowColor = 'rgba(212, 175, 55, 1)'; 
+                        shadowColor = 'rgba(212, 175, 55, 0.8)';
+                    } else if (themeId === 'forest-sanctuary') {
+                        glowColor = 'rgba(100, 220, 140, 1)'; 
+                        shadowColor = 'rgba(100, 220, 140, 0.8)';
+                    }
+                    
+                    ctx.fillStyle = glowColor;
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                     ctx.shadowBlur = 10;
-                    ctx.shadowColor = 'rgba(235, 255, 120, 0.8)';
+                    ctx.shadowColor = shadowColor;
                     ctx.fill();
                 } else if (currentMode === 'mist') {
                     const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
-                    grad.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
-                    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    if (themeId === 'minimal-zen' || themeId === 'vintage-typewriter') {
+                        grad.addColorStop(0, 'rgba(0, 0, 0, 0.05)');
+                        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    } else {
+                        grad.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+                        grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    }
                     ctx.fillStyle = grad;
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
@@ -3453,9 +3569,11 @@ const HelloApp = (function() {
         function startLoop() {
             if (animationId) return;
             
-            const maxParticles = 65;
-            for (let i = 0; i < maxParticles; i++) {
-                particles.push(new Particle());
+            if (particles.length === 0) {
+                const maxParticles = 65;
+                for (let i = 0; i < maxParticles; i++) {
+                    particles.push(new Particle());
+                }
             }
 
             function loop() {
@@ -3776,6 +3894,458 @@ const HelloApp = (function() {
             
             editor.innerHTML += html;
             editorDirty = true;
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Step 8: Data Import/Export, PDF Printing & Mobile Gestures
+    // -------------------------------------------------------------
+
+    async function exportPDF(entryId) {
+        showToast('Preparing PDF export...');
+        try {
+            let entriesToExport = [];
+            if (entryId) {
+                const target = cachedEntries.find(e => e.id === entryId);
+                if (target) entriesToExport.push(target);
+            } else {
+                entriesToExport = [...cachedEntries];
+            }
+
+            if (entriesToExport.length === 0) {
+                showToast('No entries to export.');
+                return;
+            }
+
+            // Sort chronological: oldest to newest
+            entriesToExport.sort((a, b) => a.date - b.date);
+
+            // Fetch active styling tokens to match the theme
+            const rootStyle = getComputedStyle(document.documentElement);
+            const accentColor = rootStyle.getPropertyValue('--accent').trim() || '#6B7FD7';
+            
+            const MOODS_MAP = {
+                1: '😢 Awful',
+                2: '😕 Bad',
+                3: '😐 Okay',
+                4: '🙂 Good',
+                5: '😊 Great'
+            };
+
+            let bookContent = '';
+            for (let i = 0; i < entriesToExport.length; i++) {
+                const entry = entriesToExport[i];
+                const dateStr = new Date(entry.date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                const tagsStr = (entry.tags || []).map(t => `<span class="pdf-tag">#${t}</span>`).join(' ');
+                
+                bookContent += `
+                    <div class="pdf-entry-card">
+                        <div class="pdf-entry-header">
+                            <span class="pdf-entry-date">${dateStr}</span>
+                            <span class="pdf-entry-mood">${MOODS_MAP[entry.mood] || '😐 Okay'}</span>
+                        </div>
+                        <h2 class="pdf-entry-title">${entry.title || 'Untitled'}</h2>
+                        ${tagsStr ? `<div class="pdf-entry-tags">${tagsStr}</div>` : ''}
+                        <div class="pdf-entry-body">${entry.content || ''}</div>
+                    </div>
+                `;
+            }
+
+            const coverPageHtml = entryId ? '' : `
+                <div class="pdf-cover">
+                    <div class="pdf-cover-decoration">✦ 🌙 ✦</div>
+                    <h1 class="pdf-cover-title">Hello Diary</h1>
+                    <p class="pdf-cover-subtitle">My Sacred Digital Sanctuary</p>
+                    <div class="pdf-cover-divider"></div>
+                    <p class="pdf-cover-meta">
+                        Volume 1 · ${entriesToExport.length} Memor${entriesToExport.length === 1 ? 'y' : 'ies'}<br>
+                        Exported on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
+                </div>
+                <div class="page-break"></div>
+            `;
+
+            const printHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hello Diary Export</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Merriweather', Georgia, serif;
+            background: #FFFFFF;
+            color: #111111;
+            line-height: 1.8;
+            padding: 40px;
+            max-width: 820px;
+            margin: 0 auto;
+        }
+        
+        /* Cover Page Styling */
+        .pdf-cover {
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+        .pdf-cover-decoration {
+            font-size: 2.2rem;
+            color: ${accentColor};
+            margin-bottom: 20px;
+            letter-spacing: 4px;
+        }
+        .pdf-cover-title {
+            font-family: 'Playfair Display', 'Merriweather', serif;
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #111111;
+            margin-bottom: 10px;
+        }
+        .pdf-cover-subtitle {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            color: #666666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+        }
+        .pdf-cover-divider {
+            width: 80px;
+            height: 3px;
+            background: ${accentColor};
+            margin-bottom: 30px;
+        }
+        .pdf-cover-meta {
+            font-size: 0.95rem;
+            color: #888888;
+            line-height: 1.6;
+        }
+        
+        /* Entries list styling */
+        .pdf-entry-card {
+            padding: 30px 0;
+            border-bottom: 1px solid #EAEAEA;
+            page-break-inside: avoid;
+        }
+        .pdf-entry-card:last-child {
+            border-bottom: none;
+        }
+        .pdf-entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+            color: #666666;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 500;
+        }
+        .pdf-entry-date {
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .pdf-entry-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            color: #111111;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+        .pdf-entry-tags {
+            margin-bottom: 16px;
+        }
+        .pdf-tag {
+            display: inline-block;
+            background: #F1F1F1;
+            color: #555555;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-right: 6px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 500;
+        }
+        .pdf-entry-body {
+            font-size: 1.05rem;
+            color: #333333;
+        }
+        .pdf-entry-body p {
+            margin-bottom: 12px;
+        }
+        .pdf-entry-body h1, .pdf-entry-body h2, .pdf-entry-body h3 {
+            font-family: 'Playfair Display', serif;
+            margin: 16px 0 8px;
+            color: #111111;
+        }
+        .pdf-entry-body blockquote {
+            border-left: 3px solid ${accentColor};
+            padding-left: 16px;
+            color: #555555;
+            font-style: italic;
+            margin: 16px 0;
+        }
+        .pdf-entry-body img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        
+        .page-break {
+            page-break-after: always;
+        }
+        .no-print {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${accentColor};
+            color: #FFFFFF;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 24px;
+            font-size: 0.95rem;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: transform 0.2s;
+        }
+        .no-print:hover {
+            transform: scale(1.05);
+        }
+
+        @media print {
+            .no-print { display: none; }
+            body { padding: 0; }
+            .pdf-entry-card { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <button class="no-print" onclick="window.print()">Print / Save PDF</button>
+    ${coverPageHtml}
+    ${bookContent}
+</body>
+</html>
+            `;
+
+            const win = window.open('', '_blank');
+            if (win) {
+                win.document.write(printHtml);
+                win.document.close();
+                setTimeout(() => {
+                    win.focus();
+                    win.print();
+                }, 600);
+            } else {
+                showToast('Popup blocker active. Please allow popups.');
+            }
+        } catch (err) {
+            console.error('PDF export failed:', err);
+            showToast('PDF Export failed.');
+        }
+    }
+
+    function initStep8Features() {
+        // Backup JSON Button
+        const backupBtn = document.getElementById('btn-backup-json');
+        if (backupBtn) {
+            backupBtn.addEventListener('click', async () => {
+                showToast('Generating backup...');
+                try {
+                    const entries = await HelloDB.getAllRawEntries();
+                    const settings = await HelloDB.getAllSettings();
+                    
+                    const payload = {
+                        app: 'Hello Diary',
+                        version: '1.0.0',
+                        exportDate: new Date().toISOString(),
+                        entries: entries,
+                        settings: settings
+                    };
+                    
+                    const json = JSON.stringify(payload, null, 2);
+                    const dateStr = new Date().toISOString().slice(0, 10);
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `hello-diary-backup-${dateStr}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        URL.revokeObjectURL(url);
+                        a.remove();
+                    }, 100);
+                    
+                    showToast(`Exported ${entries.length} entries. ✓`);
+                } catch (err) {
+                    console.error('Backup failed:', err);
+                    showToast('Backup generation failed.');
+                }
+            });
+        }
+        
+        // Restore JSON Button
+        const restoreBtn = document.getElementById('btn-restore-json');
+        const fileInput = document.getElementById('restore-json-input');
+        if (restoreBtn && fileInput) {
+            restoreBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            fileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        
+                        // Verification 1: Check App Header
+                        if (!data || data.app !== 'Hello Diary') {
+                            showToast('Invalid backup file format.', 'error');
+                            return;
+                        }
+                        
+                        // Verification 2: Check active decryption credentials
+                        if (data.entries && data.entries.length > 0) {
+                            // Find the most recent entry
+                            const sorted = [...data.entries].sort((a,b) => b.date - a.date);
+                            const testEntry = sorted[0];
+                            try {
+                                // Try decrypting it with current session key
+                                await HelloCrypto.decryptString(testEntry.payload, testEntry.iv, sessionKey);
+                            } catch (decErr) {
+                                console.error('Backup decryption check failed:', decErr);
+                                showToast('Passcode mismatch. Restore aborted.', 'error');
+                                return;
+                            }
+                        }
+                        
+                        // Proceed to write
+                        showToast('Restoring memories...');
+                        
+                        if (data.entries) {
+                            for (const entry of data.entries) {
+                                await HelloDB.restoreRawEntry(entry);
+                            }
+                        }
+                        
+                        if (data.settings) {
+                            for (const setting of data.settings) {
+                                // Skip auth_config so we don't lock the user out if they restored a system setting
+                                if (setting.key === 'auth_config') continue;
+                                await HelloDB.restoreSetting(setting);
+                            }
+                        }
+                        
+                        showToast('Sanctuary restored successfully! ✓');
+                        await loadAndRenderDashboard();
+                    } catch (parseErr) {
+                        console.error('Restore failed:', parseErr);
+                        showToast('Failed to parse backup JSON.');
+                    }
+                    fileInput.value = '';
+                };
+                reader.readAsText(file);
+            });
+        }
+        
+        // Export PDF Button
+        const exportPdfBtn = document.getElementById('btn-export-pdf');
+        if (exportPdfBtn) {
+            exportPdfBtn.addEventListener('click', () => {
+                exportPDF();
+            });
+        }
+        
+        // Modal PDF Button
+        const modalPdfBtn = document.getElementById('btn-view-modal-pdf');
+        if (modalPdfBtn) {
+            modalPdfBtn.addEventListener('click', () => {
+                if (activeEntryId) {
+                    exportPDF(activeEntryId);
+                } else {
+                    exportPDF();
+                }
+            });
+        }
+        
+        // Pull to Refresh Gestures
+        const timelineView = document.getElementById('view-timeline');
+        const spinner = document.getElementById('pull-to-refresh-spinner');
+        if (timelineView && spinner) {
+            let startY = 0;
+            let currentY = 0;
+            let isDragging = false;
+            
+            timelineView.addEventListener('touchstart', (e) => {
+                if (timelineView.scrollTop === 0) {
+                    startY = e.touches[0].clientY;
+                    currentY = startY;
+                    isDragging = true;
+                    spinner.style.transition = 'none';
+                }
+            }, { passive: true });
+            
+            timelineView.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                currentY = e.touches[0].clientY;
+                const diffY = currentY - startY;
+                
+                if (diffY > 0 && timelineView.scrollTop === 0) {
+                    const heightVal = Math.min(diffY * 0.4, 50);
+                    spinner.style.height = `${heightVal}px`;
+                    spinner.style.opacity = Math.min(diffY / 100, 1);
+                } else {
+                    isDragging = false;
+                    spinner.style.height = '0px';
+                    spinner.style.opacity = '0';
+                }
+            }, { passive: true });
+            
+            timelineView.addEventListener('touchend', async (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                
+                spinner.style.transition = 'height 0.25s ease, opacity 0.25s ease';
+                const diffY = currentY - startY;
+                const heightVal = Math.min(diffY * 0.4, 50);
+                
+                if (heightVal >= 25) {
+                    spinner.style.height = '40px';
+                    spinner.style.opacity = '1';
+                    
+                    try {
+                        await loadAndRenderDashboard();
+                        showToast('Memories updated! ✓');
+                    } catch (err) {
+                        console.error('Refresh failed:', err);
+                    }
+                    
+                    setTimeout(() => {
+                        spinner.style.height = '0px';
+                        spinner.style.opacity = '0';
+                    }, 800);
+                } else {
+                    spinner.style.height = '0px';
+                    spinner.style.opacity = '0';
+                }
+            }, { passive: true });
         }
     }
 

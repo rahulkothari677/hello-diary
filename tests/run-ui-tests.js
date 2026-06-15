@@ -49,13 +49,13 @@ async function main() {
     };
 
     // Helper to evaluate JS in the browser context
-    const evaluate = (expression) => {
+    const evaluate = (expression, awaitPromise = false) => {
         return new Promise((resolve, reject) => {
             const id = msgId++;
             ws.send(JSON.stringify({
                 id,
                 method: 'Runtime.evaluate',
-                params: { expression, returnByValue: true }
+                params: { expression, returnByValue: true, awaitPromise }
             }));
             
             const handler = (event) => {
@@ -779,8 +779,187 @@ async function main() {
             await evaluate('document.getElementById("btn-editor-back").click()');
             await sleep(1500);
 
+            console.log('\n=== TEST FLOW G: DATA PORTABILITY, PWA & TOUCH GESTURES ===');
+
+            console.log('Checking PWA Manifest and Icon reference...');
+            const manifestLinked = await evaluate('!!document.querySelector(\'link[rel="manifest"]\')');
+            console.log('✓ PWA manifest linked in HTML:', manifestLinked);
+            if (!manifestLinked) throw new Error('PWA Manifest link is missing in HTML head.');
+
+            console.log('Testing JSON Backup downloads...');
+            await evaluate(`
+                let downloadLinkInfo = null;
+                const originalCreateElement = document.createElement;
+                document.createElement = function(tagName) {
+                    const el = originalCreateElement.apply(document, arguments);
+                    if (tagName === 'a') {
+                        setTimeout(() => {
+                            if (el.download && el.href) {
+                                downloadLinkInfo = {
+                                    downloadName: el.download,
+                                    hasHref: !!el.href,
+                                    dataLength: el.href.length
+                                };
+                            }
+                        }, 0);
+                    }
+                    return el;
+                };
+                window._testDownloadMock = () => downloadLinkInfo;
+            `);
+            await evaluate('document.getElementById("btn-backup-json").click()');
+            await sleep(500);
+            let downloadInfo = await evaluate('window._testDownloadMock()');
+            console.log('✓ JSON Backup download trigger verified:', !!downloadInfo);
+            if (!downloadInfo || !downloadInfo.downloadName.startsWith('hello-diary-backup-')) {
+                throw new Error('JSON Backup failed to trigger file download.');
+            }
+
+            console.log('Testing JSON Restore passcode validation...');
+            let restoreResult = await evaluate(`
+                (async () => {
+                    const badPayload = {
+                        app: 'Hello Diary',
+                        version: '1.0.0',
+                        entries: [{
+                            id: 'test-id',
+                            date: Date.now(),
+                            payload: 'invalid-encrypted-payload-string',
+                            iv: 'invalid-iv'
+                        }],
+                        settings: []
+                    };
+                    
+                    const blob = new Blob([JSON.stringify(badPayload)], { type: 'application/json' });
+                    const file = new File([blob], 'backup.json');
+                    
+                    const fileInput = document.getElementById('restore-json-input');
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    fileInput.files = dataTransfer.files;
+                    
+                    const toastText = document.getElementById('toast-text');
+                    if (toastText) toastText.textContent = '';
+                    
+                    fileInput.dispatchEvent(new Event('change'));
+                    
+                    await new Promise(r => setTimeout(r, 800));
+                    return { errorMsg: toastText ? toastText.textContent : '' };
+                })()
+            `, true);
+            console.log('✓ Mismatched restore blocked verified:', restoreResult.errorMsg);
+            if (!restoreResult.errorMsg.includes('Passcode mismatch') && !restoreResult.errorMsg.includes('credentials') && !restoreResult.errorMsg.includes('abort')) {
+                throw new Error('JSON Restore failed to block mismatched passcode backup.');
+            }
+
+            console.log('Testing swipe card gestures...');
+            let swipeActive = await evaluate(`
+                (async () => {
+                    const card = document.querySelector('.swipe-card-content');
+                    if (!card) return { error: 'No timeline card found' };
+                    
+                    const initTransform = card.style.transform;
+                    
+                    const makeTouch = (x, y) => new Touch({
+                        identifier: 1,
+                        target: card,
+                        clientX: x,
+                        clientY: y
+                    });
+                    
+                    const tStart = makeTouch(200, 100);
+                    card.dispatchEvent(new TouchEvent('touchstart', {
+                        touches: [tStart],
+                        targetTouches: [tStart],
+                        changedTouches: [tStart],
+                        bubbles: true,
+                        cancelable: true
+                    }));
+                    
+                    const tMove = makeTouch(100, 100);
+                    card.dispatchEvent(new TouchEvent('touchmove', {
+                        touches: [tMove],
+                        targetTouches: [tMove],
+                        changedTouches: [tMove],
+                        bubbles: true,
+                        cancelable: true
+                    }));
+                    
+                    const midTransform = card.style.transform;
+                    
+                    card.dispatchEvent(new TouchEvent('touchend', {
+                        touches: [],
+                        targetTouches: [],
+                        changedTouches: [tMove],
+                        bubbles: true,
+                        cancelable: true
+                    }));
+                    
+                    const finalTransform = card.style.transform;
+                    
+                    return { initTransform, midTransform, finalTransform };
+                })()
+            `, true);
+            console.log('✓ Swipe card gesture transforms verified:', swipeActive);
+            if (!swipeActive.midTransform.includes('translateX') || swipeActive.finalTransform !== 'translateX(-80px)') {
+                throw new Error('Swipe gesture failed to translate card left.');
+            }
+
+            console.log('Testing pull-to-refresh gestures...');
+            let pullActive = await evaluate(`
+                (async () => {
+                    const view = document.getElementById('view-timeline');
+                    const spinner = document.getElementById('pull-to-refresh-spinner');
+                    if (!view || !spinner) return { error: 'Timeline or spinner not found' };
+                    
+                    view.scrollTop = 0;
+                    
+                    const makeTouch = (y) => new Touch({
+                        identifier: 2,
+                        target: view,
+                        clientX: 100,
+                        clientY: y
+                    });
+                    
+                    const tStart = makeTouch(100);
+                    view.dispatchEvent(new TouchEvent('touchstart', {
+                        touches: [tStart],
+                        targetTouches: [tStart],
+                        changedTouches: [tStart],
+                        bubbles: true,
+                        cancelable: true
+                    }));
+                    
+                    const tMove = makeTouch(250);
+                    view.dispatchEvent(new TouchEvent('touchmove', {
+                        touches: [tMove],
+                        targetTouches: [tMove],
+                        changedTouches: [tMove],
+                        bubbles: true,
+                        cancelable: true
+                    }));
+                    
+                    const activeHeight = spinner.style.height;
+                    const activeOpacity = spinner.style.opacity;
+                    
+                    view.dispatchEvent(new TouchEvent('touchend', {
+                        touches: [],
+                        targetTouches: [],
+                        changedTouches: [tMove],
+                        bubbles: true,
+                        cancelable: true
+                    }));
+                    
+                    return { activeHeight, activeOpacity };
+                })()
+            `, true);
+            console.log('✓ Pull-to-refresh visual feedback verified:', pullActive);
+            if (parseInt(pullActive.activeHeight) === 0) {
+                throw new Error('Pull-to-refresh gesture failed to display pull spinner.');
+            }
+
             console.log('\n=============================================================');
-            console.log('🎉 ALL STEP 7 SOUNDS, STICKERS & CUSTOM THEMES TESTS PASSED! 🎉');
+            console.log('🎉 ALL STEP 8 PWA, EXPORTS & GESTURE TESTS PASSED! 🎉');
             console.log('=============================================================');
 
             ws.close();
@@ -806,7 +985,7 @@ async function main() {
         console.error('UI Test timeout reached.');
         chrome.kill();
         process.exit(1);
-    }, 60000);
+    }, 85000);
 }
 
 function getWsDebuggerUrl() {

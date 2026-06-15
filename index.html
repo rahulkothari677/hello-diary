@@ -7,6 +7,7 @@
     <meta name="theme-color" content="#6B7FD7">
     
     <title>Hello Diary — Your Sacred Digital Sanctuary</title>
+    <link rel="manifest" href="manifest.json">
 
     <!-- Prevent Flash of Unstyled Content (FOUC) by loading theme instantly -->
     <script>
@@ -331,6 +332,11 @@
 
                 <!-- VIEW PANEL 1: TIMELINE -->
                 <div id="view-timeline" class="view-container">
+                    <!-- Pull to Refresh Spinner -->
+                    <div id="pull-to-refresh-spinner" class="pull-refresh-container">
+                        <span class="pull-refresh-spinner-icon"></span>
+                        <span class="pull-refresh-text">Updating memories...</span>
+                    </div>
                     
                     <!-- Flashback Widget -->
                     <div id="flashback-widget" class="on-this-day glass-card" style="padding: var(--space-md); margin-bottom: var(--space-md); display: none; align-items: center; gap: var(--space-md);">
@@ -616,9 +622,10 @@
                         <div class="glass-card" style="padding: var(--space-md);">
                             <h3 class="font-title" style="margin-bottom: var(--space-md); font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 6px;">Data Sync</h3>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
-                                <button class="btn btn--outline">Backup JSON</button>
-                                <button class="btn btn--outline">Restore JSON</button>
-                                <button class="btn btn--outline" style="grid-column: span 2;">Export to Styled PDF</button>
+                                <button class="btn btn--outline" id="btn-backup-json">Backup JSON</button>
+                                <button class="btn btn--outline" id="btn-restore-json">Restore JSON</button>
+                                <button class="btn btn--outline" id="btn-export-pdf" style="grid-column: span 2;">Export to Styled PDF</button>
+                                <input type="file" id="restore-json-input" accept=".json" style="display: none;">
                             </div>
                         </div>
                     </div>
@@ -909,6 +916,7 @@
                 Today we successfully finalized the design system and skeleton interface of the new Hello Diary app. The glassmorphism card layouts look beautiful and the animations feel extremely fluid. Can't wait to connect the crypto DB!
             </div>
             <div class="modal-actions">
+                <button class="btn btn--outline" id="btn-view-modal-pdf">PDF</button>
                 <button class="btn btn--outline" id="btn-view-modal-edit">Edit Entry</button>
                 <button class="btn btn--primary" id="btn-view-modal-done">Done</button>
             </div>
@@ -950,7 +958,7 @@
     </div>
 
     <!-- Theme Animated Particle Layer -->
-    <canvas id="theme-particles-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; opacity: 0.65;"></canvas>
+    <canvas id="theme-particles-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 2; opacity: 0.65;"></canvas>
 
     <!-- Floating Sound Mixer Popover -->
     <div id="popover-sound-mixer" class="editor-dropdown glass-card" style="position: fixed; width: 300px; display: none; flex-direction: column; gap: var(--space-sm); padding: var(--space-md); z-index: 10001; box-shadow: var(--shadow-lg);">

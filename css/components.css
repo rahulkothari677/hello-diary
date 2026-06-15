@@ -1325,4 +1325,81 @@
     transform: scale(1.18);
 }
 
+/* --- Swipe to Delete Card Gestures --- */
+.swipe-container {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    border-radius: var(--radius-md);
+    background: transparent;
+}
+
+.delete-swipe-bg {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 80px;
+    background: var(--mood-1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FAFAF8;
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 1;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.15);
+    transition: background var(--transition-fast);
+}
+
+.delete-swipe-bg:hover {
+    background: #DC2626;
+}
+
+.swipe-card-content {
+    position: relative;
+    z-index: 2;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    transition: transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* --- Pull to Refresh Visual Layout --- */
+.pull-refresh-container {
+    height: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: height 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.25s ease;
+    opacity: 0;
+    gap: var(--space-sm);
+    margin-bottom: 0;
+    width: 100%;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.pull-refresh-spinner-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: ptr-spin 1s linear infinite;
+}
+
+.pull-refresh-text {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+@keyframes ptr-spin {
+    to { transform: rotate(360deg); }
+}
+
 

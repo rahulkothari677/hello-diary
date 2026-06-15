@@ -469,6 +469,50 @@ const HelloDB = (function() {
         };
     }
 
+    async function getAllRawEntries() {
+        const db = await initDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['entries'], 'readonly');
+            const store = transaction.objectStore('entries');
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    async function getAllSettings() {
+        const db = await initDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['settings'], 'readonly');
+            const store = transaction.objectStore('settings');
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    async function restoreRawEntry(record) {
+        const db = await initDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['entries'], 'readwrite');
+            const store = transaction.objectStore('entries');
+            const request = store.put(record);
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    async function restoreSetting(record) {
+        const db = await initDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['settings'], 'readwrite');
+            const store = transaction.objectStore('settings');
+            const request = store.put(record);
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
     // Public API Exports
     return {
         initDatabase,
@@ -485,7 +529,11 @@ const HelloDB = (function() {
         getSetting,
         saveMedia,
         getMedia,
-        closeDatabase
+        closeDatabase,
+        getAllRawEntries,
+        getAllSettings,
+        restoreRawEntry,
+        restoreSetting
     };
 
 })();
