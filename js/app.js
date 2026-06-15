@@ -298,6 +298,7 @@ const HelloApp = (function() {
             initEditorControllers();
             await initImmersiveControllers();
             initStep8Features();
+            initBookCreator();
 
             // Start Auto-save Engine
             startAutoSaveInterval();
@@ -3901,250 +3902,416 @@ const HelloApp = (function() {
     // Step 8: Data Import/Export, PDF Printing & Mobile Gestures
     // -------------------------------------------------------------
 
-    async function exportPDF(entryId) {
-        showToast('Preparing PDF export...');
-        try {
-            let entriesToExport = [];
-            if (entryId) {
-                const target = cachedEntries.find(e => e.id === entryId);
-                if (target) entriesToExport.push(target);
-            } else {
-                entriesToExport = [...cachedEntries];
+    // -------------------------------------------------------------
+    // Step 9: Premium Print & Export Book Builder Dashboard
+    // -------------------------------------------------------------
+
+    let selectedEntryIds = [];
+    let selectedCoverTheme = 'midnight-stars';
+    let selectedPageTheme = 'clean-white';
+    let activePreviewTab = 'front';
+
+    const SVG_TEMPLATES = {
+        'midnight-stars': `
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" class="cover-logo-svg" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 20px;">
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" fill="#F6E27F" fill-opacity="0.15"/>
+                <path d="M19 3v4M21 5h-4" stroke="#F6E27F" stroke-width="1"/>
+                <path d="M15 1v2M16 2h-2" stroke="#F6E27F" stroke-width="1"/>
+            </svg>
+        `,
+        'sakura-garden': `
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" class="cover-logo-svg" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 20px;">
+                <path d="M12 2a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4Z" fill="#D291BC" fill-opacity="0.15" stroke="#D291BC"/>
+                <path d="M12 12a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4Z" fill="#D291BC" fill-opacity="0.15" stroke="#D291BC"/>
+                <path d="M6 12a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4Z" fill="#D291BC" fill-opacity="0.15" stroke="#D291BC"/>
+                <path d="M18 12a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4Z" fill="#D291BC" fill-opacity="0.15" stroke="#D291BC"/>
+                <circle cx="12" cy="12" r="3" fill="#D291BC" fill-opacity="0.3"/>
+            </svg>
+        `,
+        'autumn-harvest': `
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" class="cover-logo-svg" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 20px;">
+                <path d="M12 2C11.5 6 8.5 9 5.5 11.5c3 1.5 6 2 6.5 6.5.5-4.5 3.5-5 6.5-6.5-3-2.5-6-5.5-6.5-9.5Z" fill="#FFE5B4" fill-opacity="0.1" stroke="#FFE5B4"/>
+                <line x1="12" y1="2" x2="12" y2="22" stroke="#FFE5B4" stroke-width="1.5"/>
+            </svg>
+        `,
+        'minimal-zen': `
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" class="cover-logo-svg" stroke-width="1.2" style="margin-bottom: 20px;">
+                <circle cx="12" cy="12" r="9" stroke="#333" stroke-dasharray="2 2"/>
+                <circle cx="12" cy="12" r="6" stroke="#333"/>
+                <circle cx="12" cy="12" r="3" fill="#333" fill-opacity="0.2"/>
+            </svg>
+        `,
+        'vintage-typewriter': `
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" class="cover-logo-svg" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 20px;">
+                <circle cx="12" cy="7" r="4" stroke="#5D4037" fill="#5D4037" fill-opacity="0.05"/>
+                <line x1="12" y1="11" x2="12" y2="21" stroke="#5D4037" stroke-width="1.5"/>
+                <line x1="12" y1="21" x2="15" y2="21" stroke="#5D4037"/>
+                <line x1="12" y1="18" x2="14" y2="18" stroke="#5D4037"/>
+            </svg>
+        `
+    };
+
+    async function openBookCreator(preselectedEntryId = null) {
+        showScreen('screen-book-creator');
+        
+        // Initialize options
+        selectedCoverTheme = 'midnight-stars';
+        selectedPageTheme = 'clean-white';
+        activePreviewTab = 'front';
+        
+        // Reset active classes on controls
+        document.querySelectorAll('#screen-book-creator [data-cover]').forEach(card => {
+            card.classList.toggle('active', card.getAttribute('data-cover') === selectedCoverTheme);
+        });
+        document.querySelectorAll('#screen-book-creator [data-page]').forEach(card => {
+            card.classList.toggle('active', card.getAttribute('data-page') === selectedPageTheme);
+        });
+        document.querySelectorAll('#screen-book-creator .preview-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.getAttribute('data-view') === activePreviewTab);
+        });
+        
+        // Populate inputs
+        document.getElementById('book-title-input').value = 'Hello Diary';
+        document.getElementById('book-subtitle-input').value = 'My Sacred Digital Sanctuary';
+        document.getElementById('book-volume-input').value = 'Volume 1';
+        
+        // Build tag list for filter dropdown
+        const allTags = new Set();
+        cachedEntries.forEach(entry => {
+            if (entry.tags && Array.isArray(entry.tags)) {
+                entry.tags.forEach(t => allTags.add(t));
             }
+        });
+        
+        const filterTagSelect = document.getElementById('creator-filter-tag');
+        filterTagSelect.innerHTML = '<option value="">All Tags</option>';
+        allTags.forEach(tag => {
+            const opt = document.createElement('option');
+            opt.value = tag;
+            opt.textContent = '#' + tag;
+            filterTagSelect.appendChild(opt);
+        });
+        
+        // Mood and tag filters defaults
+        document.getElementById('creator-filter-mood').value = '';
+        document.getElementById('creator-filter-tag').value = '';
+        
+        // Default select all if no preselectedEntryId
+        if (preselectedEntryId) {
+            selectedEntryIds = [preselectedEntryId];
+        } else {
+            selectedEntryIds = cachedEntries.map(e => e.id);
+        }
+        
+        renderCreatorEntriesList();
+        updateBookPreview();
+    }
 
-            if (entriesToExport.length === 0) {
-                showToast('No entries to export.');
-                return;
-            }
-
-            // Sort chronological: oldest to newest
-            entriesToExport.sort((a, b) => a.date - b.date);
-
-            // Fetch active styling tokens to match the theme
-            const rootStyle = getComputedStyle(document.documentElement);
-            const accentColor = rootStyle.getPropertyValue('--accent').trim() || '#6B7FD7';
+    function renderCreatorEntriesList() {
+        const listContainer = document.getElementById('creator-entries-list');
+        listContainer.innerHTML = '';
+        
+        const moodFilter = document.getElementById('creator-filter-mood').value;
+        const tagFilter = document.getElementById('creator-filter-tag').value;
+        
+        // Filter entries
+        const filtered = cachedEntries.filter(entry => {
+            if (moodFilter && Number(entry.mood) !== Number(moodFilter)) return false;
+            if (tagFilter && (!entry.tags || !entry.tags.includes(tagFilter))) return false;
+            return true;
+        });
+        
+        // Sort chronological
+        const sorted = [...filtered].sort((a, b) => a.date - b.date);
+        
+        if (sorted.length === 0) {
+            listContainer.innerHTML = '<div style="padding: 15px; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">No matching entries</div>';
+            return;
+        }
+        
+        sorted.forEach(entry => {
+            const dateStr = new Date(entry.date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+            const charCount = entry.content ? entry.content.replace(/<[^>]*>/g, '').length : 0;
+            const isChecked = selectedEntryIds.includes(entry.id);
             
-            // Retrieve preferred typography font
-            const prefFontClass = await HelloDB.getSetting('preferred-font') || 'font-merriweather';
-            
-            const FONT_MAP = {
-                'font-merriweather': "'Merriweather', Georgia, serif",
-                'font-lora': "'Lora', serif",
-                'font-inter': "'Inter', sans-serif",
-                'font-caveat': "'Caveat', cursive",
-                'font-dancing': "'Dancing Script', cursive",
-                'font-pacifico': "'Pacifico', cursive",
-                'font-mono': "'JetBrains Mono', monospace",
-                'font-roboto': "'Roboto', sans-serif",
-                'font-montserrat': "'Montserrat', sans-serif",
-                'font-great-vibes': "'Great Vibes', cursive",
-                'font-cinzel': "'Cinzel', serif",
-                'font-cormorant': "'Cormorant Garamond', serif",
-                'font-comfortaa': "'Comfortaa', cursive",
-                'font-sacramento': "'Sacramento', cursive",
-                'font-special-elite': "'Special Elite', cursive",
-                'font-amatic': "'Amatic SC', cursive",
-                'font-playfair': "'Playfair Display', serif",
-                'font-outfit': "'Outfit', sans-serif",
-                'font-architects': "'Architects Daughter', cursive",
-                'font-abril': "'Abril Fatface', serif",
-                'font-poiret': "'Poiret One', cursive",
-                'font-josefin': "'Josefin Sans', sans-serif",
-                'font-satisfy': "'Satisfy', cursive",
-                'font-shadows': "'Shadows Into Light', cursive"
-            };
-            
-            const fontFamily = FONT_MAP[prefFontClass] || "'Merriweather', Georgia, serif";
-            
-            const MOODS_MAP = {
-                1: '😢 Awful',
-                2: '😕 Bad',
-                3: '😐 Okay',
-                4: '🙂 Good',
-                5: '😊 Great'
-            };
-
-            let bookContent = '';
-            for (let i = 0; i < entriesToExport.length; i++) {
-                const entry = entriesToExport[i];
-                const dateStr = new Date(entry.date).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-                const tagsStr = (entry.tags || []).map(t => `<span class="pdf-tag">#${t}</span>`).join(' ');
-                
-                bookContent += `
-                    <div class="pdf-entry-card">
-                        <div class="pdf-entry-header">
-                            <span class="pdf-entry-date">${dateStr}</span>
-                            <span class="pdf-entry-mood">${MOODS_MAP[entry.mood] || '😐 Okay'}</span>
-                        </div>
-                        <h2 class="pdf-entry-title">${entry.title || 'Untitled'}</h2>
-                        ${tagsStr ? `<div class="pdf-entry-tags">${tagsStr}</div>` : ''}
-                        <div class="pdf-entry-body">${entry.content || ''}</div>
-                    </div>
-                `;
-            }
-
-            const coverPageHtml = entryId ? '' : `
-                <div class="pdf-cover">
-                    <div class="pdf-cover-logo">
-                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="${accentColor}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="color: ${accentColor}; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.06)); margin-bottom: 20px;">
-                            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" fill="${accentColor}" fill-opacity="0.08"/>
-                            <path d="M19 3v4M21 5h-4" stroke-width="1"/>
-                            <path d="M15 1v2M16 2h-2" stroke-width="1"/>
-                        </svg>
-                    </div>
-                    <h1 class="pdf-cover-title">Hello Diary</h1>
-                    <p class="pdf-cover-subtitle">My Sacred Digital Sanctuary</p>
-                    <div class="pdf-cover-divider"></div>
-                    <p class="pdf-cover-meta">
-                        Volume 1 · ${entriesToExport.length} Memor${entriesToExport.length === 1 ? 'y' : 'ies'}<br>
-                        Exported on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                    </p>
+            const row = document.createElement('div');
+            row.className = 'entry-checkbox-row';
+            row.innerHTML = `
+                <input type="checkbox" data-id="${entry.id}" ${isChecked ? 'checked' : ''}>
+                <div class="row-info">
+                    <span class="row-title">${entry.title || 'Untitled Entry'}</span>
+                    <span class="row-meta">${dateStr} · ${charCount} chars</span>
                 </div>
-                <div class="page-break"></div>
             `;
+            
+            // Toggle checkbox when row is clicked
+            row.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'INPUT') {
+                    const cb = row.querySelector('input[type="checkbox"]');
+                    cb.checked = !cb.checked;
+                    cb.dispatchEvent(new Event('change'));
+                }
+            });
+            
+            row.querySelector('input[type="checkbox"]').addEventListener('change', (e) => {
+                const id = entry.id;
+                if (e.target.checked) {
+                    if (!selectedEntryIds.includes(id)) {
+                        selectedEntryIds.push(id);
+                    }
+                } else {
+                    selectedEntryIds = selectedEntryIds.filter(x => x !== id);
+                }
+                updateBookPreview();
+            });
+            
+            listContainer.appendChild(row);
+        });
+    }
 
-            const printHtml = `
+    function updateBookPreview() {
+        const previewPage = document.getElementById('preview-book-page');
+        if (!previewPage) return;
+        
+        // Reset classes
+        previewPage.className = 'preview-book-page';
+        
+        const title = document.getElementById('book-title-input').value || 'Hello Diary';
+        const subtitle = document.getElementById('book-subtitle-input').value || 'My Sacred Digital Sanctuary';
+        const volume = document.getElementById('book-volume-input').value || 'Volume 1';
+        
+        // Date range for back cover
+        let firstDateStr = '';
+        let lastDateStr = '';
+        if (selectedEntryIds.length > 0) {
+            const selected = cachedEntries.filter(e => selectedEntryIds.includes(e.id)).sort((a,b) => a.date - b.date);
+            if (selected.length > 0) {
+                firstDateStr = new Date(selected[0].date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                lastDateStr = new Date(selected[selected.length - 1].date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            }
+        }
+        
+        const logoSvg = SVG_TEMPLATES[selectedCoverTheme] || '';
+        
+        if (activePreviewTab === 'front') {
+            if (selectedCoverTheme === 'midnight-stars') previewPage.classList.add('preview-cover-stars');
+            else if (selectedCoverTheme === 'sakura-garden') previewPage.classList.add('preview-cover-sakura');
+            else if (selectedCoverTheme === 'autumn-harvest') previewPage.classList.add('preview-cover-autumn');
+            else if (selectedCoverTheme === 'minimal-zen') previewPage.classList.add('preview-cover-zen');
+            else if (selectedCoverTheme === 'vintage-typewriter') previewPage.classList.add('preview-cover-typewriter');
+            
+            previewPage.innerHTML = `
+                <div class="pdf-cover-logo">${logoSvg}</div>
+                <h1>${title}</h1>
+                <p class="cover-subtitle">${subtitle}</p>
+                <div style="width: 60px; height: 2px; background: currentColor; margin: 25px auto; opacity: 0.6;"></div>
+                <p class="cover-meta">
+                    ${volume}<br>
+                    ${selectedEntryIds.length} Memor${selectedEntryIds.length === 1 ? 'y' : 'ies'}<br>
+                    Created with Hello Diary
+                </p>
+            `;
+        } else if (activePreviewTab === 'back') {
+            previewPage.classList.add('back');
+            if (selectedCoverTheme === 'midnight-stars') previewPage.classList.add('preview-cover-stars');
+            else if (selectedCoverTheme === 'sakura-garden') previewPage.classList.add('preview-cover-sakura');
+            else if (selectedCoverTheme === 'autumn-harvest') previewPage.classList.add('preview-cover-autumn');
+            else if (selectedCoverTheme === 'minimal-zen') previewPage.classList.add('preview-cover-zen');
+            else if (selectedCoverTheme === 'vintage-typewriter') previewPage.classList.add('preview-cover-typewriter');
+            
+            previewPage.innerHTML = `
+                <div class="pdf-cover-logo">${logoSvg}</div>
+                <h2 style="font-family: inherit; font-size: 1.8rem; font-weight: normal; margin-bottom: 10px;">${title}</h2>
+                <div style="width: 40px; height: 1px; background: currentColor; margin: 15px auto; opacity: 0.4;"></div>
+                <p class="cover-meta" style="line-height: 1.8;">
+                    This volume compiles ${selectedEntryIds.length} memories recorded between<br>
+                    <strong>${firstDateStr || 'N/A'}</strong> and <strong>${lastDateStr || 'N/A'}</strong>.
+                    <br><br>
+                    <em>Hello Diary Sanctuary Edition</em>
+                </p>
+            `;
+        } else if (activePreviewTab === 'inside') {
+            if (selectedPageTheme === 'clean-white') previewPage.classList.add('preview-page-clean');
+            else if (selectedPageTheme === 'parchment-journal') previewPage.classList.add('preview-page-parchment');
+            else if (selectedPageTheme === 'sakura-blush') previewPage.classList.add('preview-page-sakura');
+            else if (selectedPageTheme === 'midnight-sky') previewPage.classList.add('preview-page-midnight');
+            else if (selectedPageTheme === 'notebook-lined') previewPage.classList.add('preview-page-lined');
+            
+            let entry = null;
+            if (selectedEntryIds.length > 0) {
+                entry = cachedEntries.find(e => selectedEntryIds.includes(e.id));
+            }
+            
+            if (!entry) {
+                entry = {
+                    title: 'A Beautiful Memory',
+                    content: '<p>This is a preview of how your diary entries will be styled inside the book. Select one or more entries from the list on the left to include them in your printed edition.</p><p>The typography, page background wallpapers, margins, and headers will align perfectly to create a stunning high-end printed journal.</p>',
+                    date: Date.now(),
+                    mood: 5,
+                    tags: ['preview', 'premium']
+                };
+            }
+            
+            const dateStr = new Date(entry.date).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            const MOODS_MAP = { 1: '😢 Awful', 2: '😕 Bad', 3: '😐 Okay', 4: '🙂 Good', 5: '😊 Great' };
+            const tagsStr = (entry.tags || []).map(t => `<span class="preview-entry-tag">#${t}</span>`).join(' ');
+            
+            previewPage.innerHTML = `
+                <div class="preview-entry-header">
+                    <span class="preview-entry-date">${dateStr}</span>
+                    <span class="preview-entry-mood">${MOODS_MAP[entry.mood] || '😐 Okay'}</span>
+                </div>
+                <h2 class="preview-entry-title">${entry.title || 'Untitled Entry'}</h2>
+                ${tagsStr ? `<div class="preview-entry-tags">${tagsStr}</div>` : ''}
+                <div class="preview-entry-body">${entry.content || ''}</div>
+            `;
+        }
+    }
+
+    async function compileAndPrintPDF() {
+        if (selectedEntryIds.length === 0) {
+            showToast('Please select at least one entry to export.');
+            return;
+        }
+        
+        showToast('Compiling print edition...');
+        
+        // Resolve absolute directory containing index.html without trailing slash
+        let basePath = window.location.href.split('#')[0].split('?')[0];
+        const appPath = basePath.substring(0, basePath.lastIndexOf('/'));
+        
+        const title = document.getElementById('book-title-input').value || 'Hello Diary';
+        const subtitle = document.getElementById('book-subtitle-input').value || 'My Sacred Digital Sanctuary';
+        const volume = document.getElementById('book-volume-input').value || 'Volume 1';
+        
+        // Fetch preferred typography settings
+        const prefFont = await HelloDB.getSetting('preferred-font') || 'font-merriweather';
+        const prefSize = await HelloDB.getSetting('preferred-size') || 'size-medium';
+        
+        // Sort entries
+        const selectedEntries = cachedEntries.filter(e => selectedEntryIds.includes(e.id)).sort((a,b) => a.date - b.date);
+        
+        let firstDateStr = '';
+        let lastDateStr = '';
+        if (selectedEntries.length > 0) {
+            firstDateStr = new Date(selectedEntries[0].date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            lastDateStr = new Date(selectedEntries[selectedEntries.length - 1].date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+        
+        const logoSvg = SVG_TEMPLATES[selectedCoverTheme] || '';
+        
+        // Cover classes mapping
+        let coverClass = 'print-cover-stars';
+        if (selectedCoverTheme === 'sakura-garden') coverClass = 'print-cover-sakura';
+        else if (selectedCoverTheme === 'autumn-harvest') coverClass = 'print-cover-autumn';
+        else if (selectedCoverTheme === 'minimal-zen') coverClass = 'print-cover-zen';
+        else if (selectedCoverTheme === 'vintage-typewriter') coverClass = 'print-cover-typewriter';
+        
+        // Front Cover HTML
+        const frontCoverHtml = `
+            <div class="${coverClass} front">
+                <div class="pdf-cover-logo">${logoSvg}</div>
+                <h1>${title}</h1>
+                <p class="cover-subtitle">${subtitle}</p>
+                <div class="pdf-cover-divider"></div>
+                <p class="cover-meta">
+                    ${volume} · ${selectedEntries.length} Memor${selectedEntries.length === 1 ? 'y' : 'ies'}<br>
+                    Exported on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+            </div>
+        `;
+        
+        // Back Cover HTML
+        const backCoverHtml = `
+            <div class="${coverClass} back">
+                <div class="pdf-cover-logo">${logoSvg}</div>
+                <h1 style="font-size: 2.5rem;">${title}</h1>
+                <p class="cover-subtitle">${subtitle}</p>
+                <div class="pdf-cover-divider"></div>
+                <p class="cover-meta" style="line-height: 1.8;">
+                    This volume compiles ${selectedEntries.length} memories recorded between<br>
+                    <strong>${firstDateStr || 'N/A'}</strong> and <strong>${lastDateStr || 'N/A'}</strong>.
+                    <br><br>
+                    <em>Hello Diary Sanctuary Edition</em>
+                </p>
+            </div>
+        `;
+        
+        // Inside Pages HTML
+        let insidePagesHtml = '';
+        const MOODS_MAP = { 1: '😢 Awful', 2: '😕 Bad', 3: '😐 Okay', 4: '🙂 Good', 5: '😊 Great' };
+        
+        selectedEntries.forEach(entry => {
+            const dateStr = new Date(entry.date).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            const tagsStr = (entry.tags || []).map(t => `<span class="pdf-tag">#${t}</span>`).join(' ');
+            
+            // Map selectedPageTheme precisely to the correct print page class
+            let pageThemeClass = 'page-clean-white';
+            if (selectedPageTheme === 'parchment-journal') pageThemeClass = 'page-parchment-journal';
+            else if (selectedPageTheme === 'sakura-blush') pageThemeClass = 'page-sakura-blush';
+            else if (selectedPageTheme === 'midnight-sky') pageThemeClass = 'page-midnight-sky';
+            else if (selectedPageTheme === 'notebook-lined') pageThemeClass = 'page-notebook-lined';
+            
+            insidePagesHtml += `
+                <div class="print-page ${pageThemeClass}">
+                    <div class="pdf-entry-header">
+                        <span class="pdf-entry-date">${dateStr}</span>
+                        <span class="pdf-entry-mood">${MOODS_MAP[entry.mood] || '😐 Okay'}</span>
+                    </div>
+                    <h2 class="pdf-entry-title">${entry.title || 'Untitled'}</h2>
+                    ${tagsStr ? `<div class="pdf-entry-tags">${tagsStr}</div>` : ''}
+                    <div class="pdf-entry-body ${prefFont} ${prefSize}">${entry.content || ''}</div>
+                </div>
+            `;
+        });
+        
+        const printHtml = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Hello Diary Export</title>
+    <title>${title} - Print Edition</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Caveat:wght@400;700&family=Dancing+Script:wght@400;700&family=Pacifico&family=Lora:ital,wght@0,400;0,600;1,400&family=Roboto:wght@300;400;500;700&family=Montserrat:wght@300;400;500;700&family=Great+Vibes&family=Cinzel:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Comfortaa:wght@400;700&family=Sacramento&family=Special+Elite&family=Amatic+SC:wght@400;700&family=Architects+Daughter&family=Abril+Fatface&family=Poiret+One&family=Josefin+Sans:wght@300;400;600&family=Satisfy&family=Shadows+Into+Light&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Merriweather', Georgia, serif;
+        
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
             background: #FFFFFF;
             color: #111111;
             line-height: 1.8;
-            padding: 40px;
-            max-width: 820px;
-            margin: 0 auto;
+            font-family: 'Merriweather', Georgia, serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         
-        /* Cover Page Styling */
-        .pdf-cover {
-            height: 90vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 20px;
-        }
-        .pdf-cover-logo {
-            margin-bottom: 20px;
-        }
-        .pdf-cover-title {
-            font-family: 'Playfair Display', 'Merriweather', serif;
-            font-size: 3.5rem;
-            font-weight: 700;
-            color: #111111;
-            margin-bottom: 10px;
-        }
-        .pdf-cover-subtitle {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.25rem;
-            color: #666666;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 30px;
-        }
-        .pdf-cover-divider {
-            width: 80px;
-            height: 3px;
-            background: ${accentColor};
-            margin-bottom: 30px;
-        }
-        .pdf-cover-meta {
-            font-size: 0.95rem;
-            color: #888888;
-            line-height: 1.6;
-        }
-        
-        /* Entries list styling */
-        .pdf-entry-card {
-            padding: 30px 0;
-            border-bottom: 1px solid #EAEAEA;
-            page-break-inside: avoid;
-        }
-        .pdf-entry-card:last-child {
-            border-bottom: none;
-        }
-        .pdf-entry-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            font-size: 0.85rem;
-            color: #666666;
-            font-family: 'Outfit', sans-serif;
-            font-weight: 500;
-        }
-        .pdf-entry-date {
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .pdf-entry-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.8rem;
-            color: #111111;
-            margin-bottom: 12px;
-            line-height: 1.4;
-        }
-        .pdf-entry-tags {
-            margin-bottom: 16px;
-        }
-        .pdf-tag {
-            display: inline-block;
-            background: #F1F1F1;
-            color: #555555;
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            margin-right: 6px;
-            font-family: 'Outfit', sans-serif;
-            font-weight: 500;
-        }
-        .pdf-entry-body {
-            font-family: ${fontFamily};
-            font-size: 1.05rem;
-            color: #333333;
-        }
-        .pdf-entry-body p {
-            margin-bottom: 12px;
-        }
-        .pdf-entry-body h1, .pdf-entry-body h2, .pdf-entry-body h3 {
-            font-family: 'Playfair Display', serif;
-            margin: 16px 0 8px;
-            color: #111111;
-        }
-        .pdf-entry-body blockquote {
-            border-left: 3px solid ${accentColor};
-            padding-left: 16px;
-            color: #555555;
-            font-style: italic;
-            margin: 16px 0;
-        }
-        .pdf-entry-body img {
-            max-width: 100%;
-            border-radius: 8px;
-            margin: 16px 0;
-        }
-        
-        .page-break {
-            page-break-after: always;
-        }
         .no-print {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: ${accentColor};
+            background: #6B7FD7;
             color: #FFFFFF;
             border: none;
             border-radius: 8px;
@@ -4161,35 +4328,420 @@ const HelloApp = (function() {
             transform: scale(1.05);
         }
 
+        /* Cover Common Styles */
+        .print-cover-stars, .print-cover-sakura, .print-cover-autumn, .print-cover-zen, .print-cover-typewriter {
+            width: 100%;
+            height: 100vh;
+            page-break-after: always;
+            page-break-inside: avoid;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 60px;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .pdf-cover-logo { margin-bottom: 20px; }
+        .pdf-cover-divider { width: 80px; height: 3px; background: currentColor; margin: 25px auto; opacity: 0.8; }
+        .cover-meta { font-size: 1rem; line-height: 1.8; }
+
+        /* Typography Options */
+        .font-merriweather { font-family: 'Merriweather', Georgia, serif; }
+        .font-lora { font-family: 'Lora', serif; }
+        .font-inter { font-family: 'Inter', sans-serif; }
+        .font-caveat { font-family: 'Caveat', cursive; }
+        .font-dancing { font-family: 'Dancing Script', cursive; }
+        .font-pacifico { font-family: 'Pacifico', cursive; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-roboto { font-family: 'Roboto', sans-serif; }
+        .font-montserrat { font-family: 'Montserrat', sans-serif; }
+        .font-great-vibes { font-family: 'Great Vibes', cursive; }
+        .font-cinzel { font-family: 'Cinzel', serif; }
+        .font-cormorant { font-family: 'Cormorant Garamond', serif; }
+        .font-comfortaa { font-family: 'Comfortaa', cursive; }
+        .font-sacramento { font-family: 'Sacramento', cursive; }
+        .font-special-elite { font-family: 'Special Elite', cursive; }
+        .font-amatic { font-family: 'Amatic SC', cursive; font-weight: 700; }
+        .font-playfair { font-family: 'Playfair Display', serif; }
+        .font-outfit { font-family: 'Outfit', sans-serif; }
+        .font-architects { font-family: 'Architects Daughter', cursive; }
+        .font-abril { font-family: 'Abril Fatface', serif; }
+        .font-poiret { font-family: 'Poiret One', cursive; font-weight: 600; }
+        .font-josefin { font-family: 'Josefin Sans', sans-serif; }
+        .font-satisfy { font-family: 'Satisfy', cursive; }
+        .font-shadows { font-family: 'Shadows Into Light', cursive; }
+
+        .size-small { font-size: 0.9rem !important; }
+        .size-medium { font-size: 1.15rem !important; }
+        .size-large { font-size: 1.4rem !important; }
+
+        /* Cover Presets with separate Front and Back images */
+        .print-cover-stars {
+            background: linear-gradient(135deg, #0d0e2c 0%, #060714 100%) !important;
+            background-size: cover !important;
+            background-position: center !important;
+            color: #FFFFFF !important;
+            border: 24px double #F6E27F;
+        }
+        .print-cover-stars.front {
+            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_12_35 PM.png') !important;
+        }
+        .print-cover-stars.back {
+            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_30_03 PM.png') !important;
+        }
+        .print-cover-stars::before {
+            content: ''; position: absolute; inset: 0; background: rgba(13, 14, 44, 0.45); z-index: 1;
+        }
+        .print-cover-stars * { position: relative; z-index: 2; }
+        .print-cover-stars h1 { font-family: 'Playfair Display', serif; font-size: 3.5rem; color: #F6E27F !important; }
+        .print-cover-stars .cover-subtitle { font-family: 'Outfit', sans-serif; text-transform: uppercase; font-size: 1.1rem; letter-spacing: 2px; color: #E2E2E2 !important; }
+        .print-cover-stars .cover-meta { color: #A0A5C0 !important; }
+
+        .print-cover-sakura {
+            background: linear-gradient(135deg, #FFF2F4 0%, #F8D3D9 100%) !important;
+            background-size: cover !important;
+            background-position: center !important;
+            color: #4A1525 !important;
+            border: 16px solid #F8D3D9;
+        }
+        .print-cover-sakura.front {
+            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_12_48 PM.png') !important;
+        }
+        .print-cover-sakura.back {
+            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_30_14 PM.png') !important;
+        }
+        .print-cover-sakura::before {
+            content: ''; position: absolute; inset: 0; background: rgba(255, 242, 244, 0.25); z-index: 1;
+        }
+        .print-cover-sakura * { position: relative; z-index: 2; }
+        .print-cover-sakura h1 { font-family: 'Dancing Script', cursive; font-size: 4.5rem; color: #4A1525 !important; }
+        .print-cover-sakura .cover-subtitle { font-family: 'Outfit', sans-serif; text-transform: uppercase; font-size: 1rem; letter-spacing: 2px; color: #7B3E4D !important; }
+
+        .print-cover-autumn {
+            background: linear-gradient(135deg, #E2725B 0%, #7C3626 100%) !important;
+            background-size: cover !important;
+            background-position: center !important;
+            color: #FFFFFF !important;
+            border: 12px solid #FFE5B4;
+            outline: 4px solid #FFE5B4;
+            outline-offset: -24px;
+        }
+        .print-cover-autumn.front {
+            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_13_14 PM.png') !important;
+        }
+        .print-cover-autumn.back {
+            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_30_36 PM.png') !important;
+        }
+        .print-cover-autumn::before {
+            content: ''; position: absolute; inset: 0; background: rgba(124, 54, 38, 0.35); z-index: 1;
+        }
+        .print-cover-autumn * { position: relative; z-index: 2; }
+        .print-cover-autumn h1 { font-family: 'Playfair Display', serif; font-size: 3.8rem; color: #FFE5B4 !important; }
+        .print-cover-autumn .cover-subtitle { font-family: 'Lora', serif; font-style: italic; font-size: 1.1rem; color: #F8D7B0 !important; }
+
+        .print-cover-zen {
+            background: linear-gradient(135deg, #F0F2F5 0%, #D3D6DB 100%) !important;
+            background-size: cover !important;
+            background-position: center !important;
+            color: #333333 !important;
+            border: 1px solid #999;
+        }
+        .print-cover-zen.front {
+            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_14_55 PM.png') !important;
+        }
+        .print-cover-zen.back {
+            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_30_49 PM.png') !important;
+        }
+        .print-cover-zen::before {
+            content: ''; position: absolute; inset: 30px; border: 1px solid #BBB; z-index: 1;
+        }
+        .print-cover-zen * { position: relative; z-index: 2; }
+        .print-cover-zen h1 { font-family: 'Outfit', sans-serif; font-size: 3.2rem; font-weight: 300; letter-spacing: 6px; text-transform: uppercase; }
+        .print-cover-zen .cover-subtitle { font-family: 'Inter', sans-serif; font-size: 0.95rem; letter-spacing: 4px; color: #666 !important; margin-top: 10px; }
+
+        .print-cover-typewriter {
+            background: linear-gradient(135deg, #F4EED9 0%, #D0C5A9 100%) !important;
+            background-size: cover !important;
+            background-position: center !important;
+            color: #3E2723 !important;
+            border: 20px double #5D4037;
+        }
+        .print-cover-typewriter.front {
+            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_24_44 PM.png') !important;
+        }
+        .print-cover-typewriter.back {
+            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_31_08 PM.png') !important;
+        }
+        .print-cover-typewriter::before {
+            content: ''; position: absolute; inset: 24px; border: 2px solid #5D4037; z-index: 1;
+        }
+        .print-cover-typewriter * { position: relative; z-index: 2; }
+        .print-cover-typewriter h1 { font-family: 'Special Elite', cursive; font-size: 3.5rem; }
+        .print-cover-typewriter .cover-subtitle { font-family: 'Courier New', monospace; font-size: 1.1rem; letter-spacing: 1px; margin-top: 10px; }
+
+        /* Inside Page Wallpapers */
+        .print-page {
+            width: 100%;
+            min-height: 100vh;
+            page-break-after: always;
+            page-break-inside: auto;
+            padding: 80px 60px;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .page-clean-white {
+            background: #FCFCFB !important;
+            background-image: url('${appPath}/inside pages/ChatGPT Image Jun 15, 2026, 05_31_38 PM.png') !important;
+            background-size: cover !important;
+            background-position: center !important;
+            color: #222222 !important;
+            border: 2px solid #EAE6DF;
+        }
+        .page-clean-white::before {
+            content: ''; position: absolute; inset: 20px; border: 1px solid rgba(0,0,0,0.08); pointer-events: none;
+        }
+
+        .page-parchment-journal {
+            background: #F4EED9 !important;
+            background-image: url('${appPath}/inside pages/ChatGPT Image Jun 15, 2026, 05_31_31 PM.png') !important;
+            background-size: cover !important;
+            background-position: center !important;
+            color: #3E2723 !important;
+            border: 6px solid #D0C5A9;
+        }
+        .page-parchment-journal::before {
+            content: ''; position: absolute; inset: 12px; border: 1px double rgba(0,0,0,0.12); pointer-events: none;
+        }
+
+        .page-sakura-blush {
+            background: #FFF2F4 !important;
+            background-image: url('${appPath}/inside pages/ChatGPT Image Jun 15, 2026, 05_31_25 PM.png') !important;
+            background-size: cover !important;
+            background-position: center !important;
+            color: #4A1525 !important;
+            border: 4px solid #F8D3D9;
+        }
+        .page-sakura-blush::before {
+            content: ''; position: absolute; inset: 12px; border: 1px solid rgba(0,0,0,0.05); pointer-events: none; z-index: 1;
+        }
+        .page-sakura-blush * { position: relative; z-index: 2; }
+
+        .page-midnight-sky {
+            background: #0B0C16 !important;
+            background-image: url('${appPath}/inside pages/ChatGPT Image Jun 15, 2026, 05_31_19 PM.png') !important;
+            background-size: cover !important;
+            background-position: center !important;
+            color: #FFFFFF !important;
+            border: 4px solid #1A1D36;
+        }
+        .page-midnight-sky::before {
+            content: ''; position: absolute; inset: 12px; border: 1px solid rgba(255,255,255,0.15); pointer-events: none; z-index: 1;
+        }
+        .page-midnight-sky * { position: relative; z-index: 2; }
+
+        .page-notebook-lined {
+            background: #FCFBF7 !important;
+            background-image: url('${appPath}/inside pages/ChatGPT Image Jun 15, 2026, 05_31_44 PM.png') !important;
+            background-size: cover !important;
+            background-position: center !important;
+            padding-left: 80px !important;
+            border: 2px solid #EAE6DF;
+            color: #222222 !important;
+        }
+        .page-notebook-lined::before {
+            content: ''; position: absolute; left: 60px; top: 0; bottom: 0; width: 1.5px; background: rgba(255,0,0,0.15); pointer-events: none;
+        }
+
+        /* Entries layout in print */
+        .pdf-entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 500;
+            opacity: 0.8;
+            page-break-after: avoid;
+        }
+        .pdf-entry-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem;
+            margin-bottom: 15px;
+            line-height: 1.4;
+            page-break-after: avoid;
+        }
+        .pdf-entry-tags {
+            margin-bottom: 25px;
+        }
+        .pdf-tag {
+            display: inline-block;
+            background: rgba(0,0,0,0.05);
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-right: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 500;
+        }
+        .page-midnight-sky .pdf-tag {
+            background: rgba(255,255,255,0.1) !important;
+        }
+        .pdf-entry-body {
+            line-height: 1.8;
+        }
+        .pdf-entry-body p {
+            margin-bottom: 16px;
+        }
+        .pdf-entry-body blockquote {
+            border-left: 4px solid #6B7FD7;
+            padding-left: 20px;
+            font-style: italic;
+            margin: 20px 0;
+            opacity: 0.85;
+        }
+        .pdf-entry-body img {
+            max-width: 100%;
+            border-radius: 10px;
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+
         @media print {
-            .no-print { display: none; }
-            body { padding: 0; }
-            .pdf-entry-card { page-break-inside: avoid; }
+            .no-print { display: none !important; }
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
         }
     </style>
 </head>
 <body>
     <button class="no-print" onclick="window.print()">Print / Save PDF</button>
-    ${coverPageHtml}
-    ${bookContent}
+    ${frontCoverHtml}
+    ${insidePagesHtml}
+    ${backCoverHtml}
 </body>
 </html>
-            `;
+        `;
+        
+        const win = window.open('', '_blank');
+        if (win) {
+            win.document.write(printHtml);
+            win.document.close();
+            setTimeout(() => {
+                win.focus();
+                win.print();
+            }, 800);
+        } else {
+            showToast('Popup blocker active. Please allow popups.');
+        }
+    }
 
-            const win = window.open('', '_blank');
-            if (win) {
-                win.document.write(printHtml);
-                win.document.close();
-                setTimeout(() => {
-                    win.focus();
-                    win.print();
-                }, 600);
-            } else {
-                showToast('Popup blocker active. Please allow popups.');
+    function initBookCreator() {
+        // Back/Close Button
+        const closeBtn = document.getElementById('btn-creator-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                showScreen('screen-dashboard');
+                if (window.switchDashboardView) {
+                    window.switchDashboardView('timeline');
+                }
+            });
+        }
+        
+        // Title, Subtitle, Volume changes
+        ['book-title-input', 'book-subtitle-input', 'book-volume-input'].forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.addEventListener('input', () => {
+                    updateBookPreview();
+                });
             }
-        } catch (err) {
-            console.error('PDF export failed:', err);
-            showToast('PDF Export failed.');
+        });
+        
+        // Cover Preset cards click
+        document.querySelectorAll('#screen-book-creator [data-cover]').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('#screen-book-creator [data-cover]').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                selectedCoverTheme = card.getAttribute('data-cover');
+                updateBookPreview();
+            });
+        });
+        
+        // Inside Page Preset cards click
+        document.querySelectorAll('#screen-book-creator [data-page]').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('#screen-book-creator [data-page]').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                selectedPageTheme = card.getAttribute('data-page');
+                updateBookPreview();
+            });
+        });
+        
+        // Preview tabs click
+        document.querySelectorAll('#screen-book-creator .preview-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('#screen-book-creator .preview-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                activePreviewTab = tab.getAttribute('data-view');
+                updateBookPreview();
+            });
+        });
+        
+        // Filters
+        const moodFilter = document.getElementById('creator-filter-mood');
+        if (moodFilter) {
+            moodFilter.addEventListener('change', () => {
+                renderCreatorEntriesList();
+            });
+        }
+        
+        const tagFilter = document.getElementById('creator-filter-tag');
+        if (tagFilter) {
+            tagFilter.addEventListener('change', () => {
+                renderCreatorEntriesList();
+            });
+        }
+        
+        // Bulk actions
+        const selectAllBtn = document.getElementById('btn-creator-select-all');
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', () => {
+                const checkboxes = document.querySelectorAll('#creator-entries-list input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    if (!cb.checked) {
+                        cb.checked = true;
+                        cb.dispatchEvent(new Event('change'));
+                    }
+                });
+            });
+        }
+        
+        const selectNoneBtn = document.getElementById('btn-creator-select-none');
+        if (selectNoneBtn) {
+            selectNoneBtn.addEventListener('click', () => {
+                const checkboxes = document.querySelectorAll('#creator-entries-list input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    if (cb.checked) {
+                        cb.checked = false;
+                        cb.dispatchEvent(new Event('change'));
+                    }
+                });
+            });
+        }
+        
+        // Generate Button
+        const genBtn = document.getElementById('btn-creator-generate');
+        if (genBtn) {
+            genBtn.addEventListener('click', () => {
+                compileAndPrintPDF();
+            });
         }
     }
 
@@ -4305,7 +4857,7 @@ const HelloApp = (function() {
         const exportPdfBtn = document.getElementById('btn-export-pdf');
         if (exportPdfBtn) {
             exportPdfBtn.addEventListener('click', () => {
-                exportPDF();
+                openBookCreator();
             });
         }
         
@@ -4314,9 +4866,9 @@ const HelloApp = (function() {
         if (modalPdfBtn) {
             modalPdfBtn.addEventListener('click', () => {
                 if (activeEntryId) {
-                    exportPDF(activeEntryId);
+                    openBookCreator(activeEntryId);
                 } else {
-                    exportPDF();
+                    openBookCreator();
                 }
             });
         }
@@ -4392,7 +4944,8 @@ const HelloApp = (function() {
         showScreen,
         checkLockoutState,
         loadAndRenderDashboard,
-        renderAnalytics
+        renderAnalytics,
+        openBookCreator
     };
 
 })();

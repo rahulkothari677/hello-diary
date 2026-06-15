@@ -958,8 +958,107 @@ async function main() {
                 throw new Error('Pull-to-refresh gesture failed to display pull spinner.');
             }
 
+            console.log('\n=== TEST FLOW H: PREMIUM BOOK BUILDER & PRINT PREVIEWS ===');
+            
+            console.log('Switching view to Settings tab...');
+            await evaluate('switchDashboardView("settings")');
+            await sleep(500);
+
+            console.log('Opening Book Creator overlay...');
+            await evaluate('document.getElementById("btn-export-pdf").click()');
+            await sleep(500);
+
+            // Verify Book Creator screen is active
+            let isCreatorActive = await evaluate('document.getElementById("screen-book-creator").classList.contains("active")');
+            console.log('✓ Book Creator dashboard screen active status:', isCreatorActive);
+            if (!isCreatorActive) {
+                throw new Error('Book Creator screen failed to show active state.');
+            }
+
+            // Verify cover preview updates dynamically
+            console.log('Modifying cover title, subtitle, volume inputs...');
+            await evaluate(`
+                document.getElementById('book-title-input').value = 'Test Book Title';
+                document.getElementById('book-title-input').dispatchEvent(new Event('input'));
+                document.getElementById('book-subtitle-input').value = 'Test Subtitle';
+                document.getElementById('book-subtitle-input').dispatchEvent(new Event('input'));
+                document.getElementById('book-volume-input').value = 'Test Vol 1';
+                document.getElementById('book-volume-input').dispatchEvent(new Event('input'));
+            `);
+            await sleep(300);
+
+            let previewText = await evaluate(`
+                document.querySelector('#preview-book-page h1').textContent
+            `);
+            console.log('✓ Preview cover title matches modified input:', previewText);
+            if (previewText !== 'Test Book Title') {
+                throw new Error('Preview title did not update dynamically.');
+            }
+
+            // Select Cover Theme
+            console.log('Selecting Sakura Garden cover preset theme...');
+            await evaluate(`
+                document.querySelector('#screen-book-creator [data-cover="sakura-garden"]').click();
+            `);
+            await sleep(300);
+            
+            let isSakuraCoverSelected = await evaluate(`
+                document.getElementById('preview-book-page').classList.contains('preview-cover-sakura')
+            `);
+            console.log('✓ Cover theme visual preset applied:', isSakuraCoverSelected);
+            if (!isSakuraCoverSelected) {
+                throw new Error('Cover theme failed to update in live preview.');
+            }
+
+            // Select Inside Tab and Page Theme
+            console.log('Switching live preview to Inside Page view...');
+            await evaluate(`
+                document.querySelector('#screen-book-creator .preview-tab[data-view="inside"]').click();
+            `);
+            await sleep(300);
+
+            console.log('Selecting Midnight Sky inside page preset design...');
+            await evaluate(`
+                document.querySelector('#screen-book-creator [data-page="midnight-sky"]').click();
+            `);
+            await sleep(300);
+
+            let isMidnightPageSelected = await evaluate(`
+                document.getElementById('preview-book-page').classList.contains('preview-page-midnight')
+            `);
+            console.log('✓ Inside page theme visual preset applied:', isMidnightPageSelected);
+            if (!isMidnightPageSelected) {
+                throw new Error('Inside page theme failed to update in live preview.');
+            }
+
+            // Switch to Back Cover tab
+            console.log('Switching live preview to Back Cover view...');
+            await evaluate(`
+                document.querySelector('#screen-book-creator .preview-tab[data-view="back"]').click();
+            `);
+            await sleep(300);
+
+            let isBackCoverSelected = await evaluate(`
+                document.getElementById('preview-book-page').classList.contains('preview-cover-sakura')
+            `);
+            console.log('✓ Back cover matches cover style theme:', isBackCoverSelected);
+            if (!isBackCoverSelected) {
+                throw new Error('Back cover theme styling failed.');
+            }
+
+            // Close Book Creator
+            console.log('Closing Book Creator overlay...');
+            await evaluate('document.getElementById("btn-creator-close").click()');
+            await sleep(500);
+
+            let isCreatorHidden = await evaluate('!document.getElementById("screen-book-creator").classList.contains("active")');
+            console.log('✓ Book Creator dashboard screen hidden status:', isCreatorHidden);
+            if (!isCreatorHidden) {
+                throw new Error('Book Creator screen failed to close.');
+            }
+
             console.log('\n=============================================================');
-            console.log('🎉 ALL STEP 8 PWA, EXPORTS & GESTURE TESTS PASSED! 🎉');
+            console.log('🎉 ALL STEP 9 PREMIUM BOOK BUILDER & PRINT TESTS PASSED! 🎉');
             console.log('=============================================================');
 
             ws.close();

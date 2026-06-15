@@ -1402,4 +1402,723 @@
     to { transform: rotate(360deg); }
 }
 
+/* ==========================================================================
+   Step 9: Premium Book Builder & Print Presets
+   ========================================================================== */
+
+.screen--book-creator {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1000; /* Overlays dashboard & editor */
+    background: var(--bg-primary);
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.screen--book-creator.active {
+    display: flex;
+}
+
+.creator-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-md) var(--space-lg);
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
+    z-index: 10;
+}
+
+.creator-header-left h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.creator-header-left .subtitle {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.creator-header-right {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.creator-workspace {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    height: calc(100vh - 70px);
+    overflow: hidden;
+}
+
+.creator-sidebar {
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border-light);
+    padding: var(--space-md);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.sidebar-section.flex-grow {
+    flex-grow: 1;
+    min-height: 250px;
+    display: flex;
+    flex-direction: column;
+}
+
+.section-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 6px;
+    margin-bottom: var(--space-xs);
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.input-group label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.input-group input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: var(--space-xs) var(--space-sm);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.input-group input:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-xs);
+}
+
+.preset-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.preset-card-preview {
+    width: 100%;
+    aspect-ratio: 3/4;
+    border-radius: var(--radius-sm);
+    border: 2px solid transparent;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.preset-card:hover .preset-card-preview {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.preset-card.active .preset-card-preview {
+    border: 3px solid var(--accent) !important;
+    box-shadow: 0 0 10px rgba(var(--accent-rgb, 107, 127, 215), 0.5);
+    transform: scale(0.95);
+}
+
+.preset-name {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+/* Cover Previews */
+/* Cover Previews */
+.midnight-stars-thumb { background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_12_35 PM.png") !important; background-size: cover; background-position: center; color: transparent; }
+.sakura-garden-thumb { background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_12_48 PM.png") !important; background-size: cover; background-position: center; color: transparent; }
+.autumn-harvest-thumb { background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_13_14 PM.png") !important; background-size: cover; background-position: center; color: transparent; }
+.minimal-zen-thumb { background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_14_55 PM.png") !important; background-size: cover; background-position: center; color: transparent; }
+.vintage-typewriter-thumb { background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_24_44 PM.png") !important; background-size: cover; background-position: center; color: transparent; }
+
+/* Page Previews */
+.page-clean-thumb { background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_38 PM.png"); background-size: cover; background-position: center; }
+.page-parchment-thumb { background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_31 PM.png"); background-size: cover; background-position: center; }
+.page-sakura-thumb { background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_25 PM.png"); background-size: cover; background-position: center; }
+.page-midnight-thumb { background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_19 PM.png"); background-size: cover; background-position: center; }
+.page-lined-thumb { background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_44 PM.png"); background-size: cover; background-position: center; }
+
+/* Entries Checkbox List */
+.entries-filter-bar {
+    display: flex;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-xs);
+}
+
+.entries-filter-bar select {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 6px var(--space-xs);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    font-family: inherit;
+}
+
+.entries-bulk-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--space-xs);
+}
+
+.entries-bulk-actions .btn--text {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    color: var(--accent);
+}
+
+.entries-checkbox-list {
+    flex-grow: 1;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.02);
+    overflow-y: auto;
+    max-height: 250px;
+}
+
+.entry-checkbox-row {
+    display: flex;
+    align-items: center;
+    padding: 8px var(--space-sm);
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: background 0.15s;
+    user-select: none;
+}
+
+.entry-checkbox-row:last-child {
+    border-bottom: none;
+}
+
+.entry-checkbox-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.entry-checkbox-row input[type="checkbox"] {
+    margin-right: var(--space-sm);
+    accent-color: var(--accent);
+}
+
+.entry-checkbox-row .row-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-grow: 1;
+}
+
+.entry-checkbox-row .row-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+    color: var(--text-primary);
+}
+
+.entry-checkbox-row .row-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Right Preview Pane */
+.creator-preview-pane {
+    background: var(--bg-primary);
+    background-image: radial-gradient(var(--border-light) 1px, transparent 1px);
+    background-size: 20px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-md);
+    overflow-y: auto;
+}
+
+.preview-toolbar {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-md);
+}
+
+.preview-tabs {
+    display: flex;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 2px;
+}
+
+.preview-tab {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 6px var(--space-sm);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.preview-tab.active {
+    background: var(--accent);
+    color: #FFFFFF;
+}
+
+.preview-hint {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.preview-viewport {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    flex-grow: 1;
+}
+
+/* Simulated A4/Letter Printable Page for Mockup */
+.preview-book-page {
+    width: 100%;
+    max-width: 480px;
+    min-height: 640px;
+    background: #FFFFFF;
+    color: #111111;
+    border-radius: 12px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    padding: var(--space-lg);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Real-Time Preview Styles matching Presets */
+
+/* Cover Themes */
+.preview-cover-stars {
+    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_12_35 PM.png") !important;
+    background-size: cover;
+    background-position: center;
+    color: #FFFFFF;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border: 12px double #F6E27F;
+    box-shadow: inset 0 0 100px rgba(0,0,0,0.4);
+}
+.preview-cover-stars.back {
+    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_30_03 PM.png") !important;
+}
+.preview-cover-stars::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(13, 14, 44, 0.2);
+    z-index: 1;
+}
+.preview-cover-stars * {
+    position: relative;
+    z-index: 2;
+}
+.preview-cover-stars .cover-logo-svg {
+    stroke: #F6E27F;
+    fill: #F6E27F;
+    fill-opacity: 0.15;
+    filter: drop-shadow(0 0 10px rgba(246,226,127,0.5));
+}
+.preview-cover-stars h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    color: #F6E27F;
+    margin-bottom: var(--space-sm);
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+.preview-cover-stars .cover-subtitle {
+    font-family: 'Outfit', sans-serif;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    color: #E2E2E2;
+}
+.preview-cover-stars .cover-meta {
+    font-size: 0.8rem;
+    color: #A0A5C0;
+    margin-top: var(--space-lg);
+    line-height: 1.6;
+}
+
+.preview-cover-sakura {
+    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_12_48 PM.png") !important;
+    background-size: cover;
+    background-position: center;
+    color: #4A1525;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border: 8px solid #F8D3D9;
+}
+.preview-cover-sakura.back {
+    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_30_14 PM.png") !important;
+}
+.preview-cover-sakura::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 242, 244, 0.15);
+    z-index: 1;
+}
+.preview-cover-sakura * {
+    position: relative;
+    z-index: 2;
+}
+.preview-cover-sakura .cover-logo-svg {
+    stroke: #D291BC;
+    fill: #D291BC;
+    fill-opacity: 0.15;
+}
+.preview-cover-sakura h1 {
+    font-family: 'Dancing Script', cursive;
+    font-size: 3.2rem;
+    color: #4A1525;
+    margin-bottom: var(--space-xs);
+}
+.preview-cover-sakura .cover-subtitle {
+    font-family: 'Outfit', sans-serif;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    color: #7B3E4D;
+}
+.preview-cover-sakura .cover-meta {
+    font-size: 0.8rem;
+    color: #7B3E4D;
+    margin-top: var(--space-lg);
+}
+
+.preview-cover-autumn {
+    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_13_14 PM.png") !important;
+    background-size: cover;
+    background-position: center;
+    color: #FFFFFF;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border: 6px solid #FFE5B4;
+    outline: 2px solid #FFE5B4;
+    outline-offset: -12px;
+}
+.preview-cover-autumn.back {
+    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_30_36 PM.png") !important;
+}
+.preview-cover-autumn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(124, 54, 38, 0.2);
+    z-index: 1;
+}
+.preview-cover-autumn * {
+    position: relative;
+    z-index: 2;
+}
+.preview-cover-autumn .cover-logo-svg {
+    stroke: #FFE5B4;
+    fill: #FFE5B4;
+    fill-opacity: 0.1;
+}
+.preview-cover-autumn h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.8rem;
+    color: #FFE5B4;
+}
+.preview-cover-autumn .cover-subtitle {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 0.85rem;
+    color: #F8D7B0;
+}
+.preview-cover-autumn .cover-meta {
+    font-size: 0.8rem;
+    color: #F8D7B0;
+    margin-top: var(--space-lg);
+}
+
+.preview-cover-zen {
+    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_14_55 PM.png") !important;
+    background-size: cover;
+    background-position: center;
+    color: #333333;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border: 1px solid #999;
+    padding: 40px;
+}
+.preview-cover-zen.back {
+    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_30_49 PM.png") !important;
+}
+.preview-cover-zen::before {
+    content: '';
+    position: absolute;
+    inset: 16px;
+    border: 1px solid #BBB;
+    z-index: 1;
+}
+.preview-cover-zen * {
+    position: relative;
+    z-index: 2;
+}
+.preview-cover-zen .cover-logo-svg {
+    stroke: #333;
+    fill: none;
+}
+.preview-cover-zen h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 300;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+}
+.preview-cover-zen .cover-subtitle {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 3px;
+    color: #666;
+    margin-top: 8px;
+}
+.preview-cover-zen .cover-meta {
+    font-size: 0.75rem;
+    color: #777;
+    margin-top: var(--space-lg);
+}
+
+.preview-cover-typewriter {
+    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_24_44 PM.png") !important;
+    background-size: cover;
+    background-position: center;
+    color: #3E2723;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border: 10px double #5D4037;
+    padding: 30px;
+}
+.preview-cover-typewriter.back {
+    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_31_08 PM.png") !important;
+}
+.preview-cover-typewriter::before {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border: 2px solid #5D4037;
+    z-index: 1;
+}
+.preview-cover-typewriter * {
+    position: relative;
+    z-index: 2;
+}
+.preview-cover-typewriter .cover-logo-svg {
+    stroke: #5D4037;
+    fill: #5D4037;
+    fill-opacity: 0.05;
+}
+.preview-cover-typewriter h1 {
+    font-family: 'Special Elite', cursive;
+    font-size: 2.4rem;
+}
+.preview-cover-typewriter .cover-subtitle {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    margin-top: 8px;
+}
+.preview-cover-typewriter .cover-meta {
+    font-family: 'Special Elite', cursive;
+    font-size: 0.8rem;
+    margin-top: var(--space-lg);
+    line-height: 1.8;
+}
+
+/* Inside Page Wallpaper Themes */
+.preview-page-clean {
+    background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_38 PM.png") !important;
+    background-size: cover;
+    background-position: center;
+    color: #222222;
+    border: 2px solid #EAE6DF;
+}
+.preview-page-clean::before {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    pointer-events: none;
+}
+
+.preview-page-parchment {
+    background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_31 PM.png") !important;
+    background-size: cover;
+    background-position: center;
+    color: #3E2723;
+    border: 4px solid #D0C5A9;
+}
+.preview-page-parchment::before {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border: 1px double rgba(0, 0, 0, 0.12);
+    pointer-events: none;
+}
+
+.preview-page-sakura {
+    background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_25 PM.png") !important;
+    background-size: cover;
+    background-position: center;
+    color: #4A1525;
+    border: 3px solid #F8D3D9;
+}
+.preview-page-sakura::before {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    pointer-events: none;
+}
+
+.preview-page-midnight {
+    background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_19 PM.png") !important;
+    background-size: cover;
+    background-position: center;
+    color: #FFFFFF;
+    border: 3px solid #1A1D36;
+}
+.preview-page-midnight::before {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    pointer-events: none;
+}
+
+.preview-page-lined {
+    background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_44 PM.png") !important;
+    background-size: cover;
+    background-position: center;
+    padding-left: 50px;
+    border: 2px solid #EAE6DF;
+    color: #222222;
+}
+.preview-page-lined::before {
+    content: '';
+    position: absolute;
+    left: 40px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255, 0, 0, 0.15);
+    pointer-events: none;
+}
+
+/* Preview Typography & Headers */
+.preview-entry-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: inherit;
+    opacity: 0.8;
+    margin-bottom: 8px;
+    font-family: 'Outfit', sans-serif;
+}
+.preview-entry-title {
+    font-size: 1.4rem;
+    margin-bottom: 8px;
+    font-family: 'Playfair Display', serif;
+}
+.preview-entry-tags {
+    margin-bottom: var(--space-sm);
+}
+.preview-entry-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.05);
+    color: inherit;
+    font-size: 0.7rem;
+    margin-right: 4px;
+}
+.preview-page-midnight .preview-entry-tag {
+    background: rgba(255,255,255,0.1);
+}
+.preview-entry-body {
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+/* Print CSS adjustments to force page breaks and colors */
+@media print {
+    /* Set page dimension margins */
+    @page {
+        size: A4 portrait;
+        margin: 0;
+    }
+    
+    body {
+        margin: 0;
+        background: #FFFFFF !important;
+    }
+    
+    .screen--book-creator {
+        display: none !important;
+    }
+}
+
 
