@@ -3924,6 +3924,38 @@ const HelloApp = (function() {
             const rootStyle = getComputedStyle(document.documentElement);
             const accentColor = rootStyle.getPropertyValue('--accent').trim() || '#6B7FD7';
             
+            // Retrieve preferred typography font
+            const prefFontClass = await HelloDB.getSetting('preferred-font') || 'font-merriweather';
+            
+            const FONT_MAP = {
+                'font-merriweather': "'Merriweather', Georgia, serif",
+                'font-lora': "'Lora', serif",
+                'font-inter': "'Inter', sans-serif",
+                'font-caveat': "'Caveat', cursive",
+                'font-dancing': "'Dancing Script', cursive",
+                'font-pacifico': "'Pacifico', cursive",
+                'font-mono': "'JetBrains Mono', monospace",
+                'font-roboto': "'Roboto', sans-serif",
+                'font-montserrat': "'Montserrat', sans-serif",
+                'font-great-vibes': "'Great Vibes', cursive",
+                'font-cinzel': "'Cinzel', serif",
+                'font-cormorant': "'Cormorant Garamond', serif",
+                'font-comfortaa': "'Comfortaa', cursive",
+                'font-sacramento': "'Sacramento', cursive",
+                'font-special-elite': "'Special Elite', cursive",
+                'font-amatic': "'Amatic SC', cursive",
+                'font-playfair': "'Playfair Display', serif",
+                'font-outfit': "'Outfit', sans-serif",
+                'font-architects': "'Architects Daughter', cursive",
+                'font-abril': "'Abril Fatface', serif",
+                'font-poiret': "'Poiret One', cursive",
+                'font-josefin': "'Josefin Sans', sans-serif",
+                'font-satisfy': "'Satisfy', cursive",
+                'font-shadows': "'Shadows Into Light', cursive"
+            };
+            
+            const fontFamily = FONT_MAP[prefFontClass] || "'Merriweather', Georgia, serif";
+            
             const MOODS_MAP = {
                 1: '😢 Awful',
                 2: '😕 Bad',
@@ -3958,7 +3990,13 @@ const HelloApp = (function() {
 
             const coverPageHtml = entryId ? '' : `
                 <div class="pdf-cover">
-                    <div class="pdf-cover-decoration">✦ 🌙 ✦</div>
+                    <div class="pdf-cover-logo">
+                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="${accentColor}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="color: ${accentColor}; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.06)); margin-bottom: 20px;">
+                            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" fill="${accentColor}" fill-opacity="0.08"/>
+                            <path d="M19 3v4M21 5h-4" stroke-width="1"/>
+                            <path d="M15 1v2M16 2h-2" stroke-width="1"/>
+                        </svg>
+                    </div>
                     <h1 class="pdf-cover-title">Hello Diary</h1>
                     <p class="pdf-cover-subtitle">My Sacred Digital Sanctuary</p>
                     <div class="pdf-cover-divider"></div>
@@ -3976,7 +4014,7 @@ const HelloApp = (function() {
 <head>
     <meta charset="UTF-8">
     <title>Hello Diary Export</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Caveat:wght@400;700&family=Dancing+Script:wght@400;700&family=Pacifico&family=Lora:ital,wght@0,400;0,600;1,400&family=Roboto:wght@300;400;500;700&family=Montserrat:wght@300;400;500;700&family=Great+Vibes&family=Cinzel:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Comfortaa:wght@400;700&family=Sacramento&family=Special+Elite&family=Amatic+SC:wght@400;700&family=Architects+Daughter&family=Abril+Fatface&family=Poiret+One&family=Josefin+Sans:wght@300;400;600&family=Satisfy&family=Shadows+Into+Light&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -3999,11 +4037,8 @@ const HelloApp = (function() {
             text-align: center;
             padding: 20px;
         }
-        .pdf-cover-decoration {
-            font-size: 2.2rem;
-            color: ${accentColor};
+        .pdf-cover-logo {
             margin-bottom: 20px;
-            letter-spacing: 4px;
         }
         .pdf-cover-title {
             font-family: 'Playfair Display', 'Merriweather', serif;
@@ -4077,6 +4112,7 @@ const HelloApp = (function() {
             font-weight: 500;
         }
         .pdf-entry-body {
+            font-family: ${fontFamily};
             font-size: 1.05rem;
             color: #333333;
         }
