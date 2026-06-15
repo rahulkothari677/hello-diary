@@ -9,7 +9,7 @@
 const HelloDB = (function() {
 
     const DB_NAME = 'HelloDiaryDB';
-    const DB_VERSION = 1;
+    const DB_VERSION = 2;
     let dbInstance = null;
 
     /**
@@ -65,6 +65,11 @@ const HelloDB = (function() {
                 if (!db.objectStoreNames.contains('media')) {
                     const mediaStore = db.createObjectStore('media', { keyPath: 'id' });
                     mediaStore.createIndex('entryId', 'entryId', { unique: false });
+                }
+
+                // 5. Intruder Captures Store (stores unencrypted intruder snapshots)
+                if (!db.objectStoreNames.contains('intruder_captures')) {
+                    db.createObjectStore('intruder_captures', { keyPath: 'id' });
                 }
             };
         });
@@ -191,11 +196,33 @@ const HelloDB = (function() {
                 config.failedAttempts = 0;
                 config.lockoutUntil = 0;
                 await updateAuthConfig(config);
-                return key;
+                return { key, isDecoy: false };
             } else {
                 throw new Error('Invalid signature decrypted.'); // Should not happen under AES-GCM
             }
         } catch (error) {
+            // If primary key decryption fails, check if it matches the decoy credentials
+            if (config.decoyVerificationCiphertext) {
+                try {
+                    const decoyKey = await HelloCrypto.deriveKey(pinOrPattern, config.decoySalt);
+                    const decryptedDecoy = await HelloCrypto.decryptString(
+                        config.decoyVerificationCiphertext,
+                        config.decoyVerificationIv,
+                        decoyKey
+                    );
+                    
+                    if (decryptedDecoy === 'HelloDiaryDecoy') {
+                        // Success for Decoy PIN!
+                        config.failedAttempts = 0;
+                        config.lockoutUntil = 0;
+                        await updateAuthConfig(config);
+                        return { key: decoyKey, isDecoy: true };
+                    }
+                } catch (decoyErr) {
+                    // Decoy decryption failed as well, continue to normal failure block
+                }
+            }
+
             // Decryption failure = Incorrect PIN/Pattern
             config.failedAttempts = (config.failedAttempts || 0) + 1;
             let msg = '';
@@ -513,6 +540,99 @@ const HelloDB = (function() {
         });
     }
 
+    async function saveDecoyCredentials(pinOrPattern) {
+        const db = await initDatabase();
+        
+        // Fetch credentials details
+        const config = await new Promise((resolve, reject) => {
+            const transaction = db.transaction(['credentials'], 'readonly');
+            const store = transaction.objectStore('credentials');
+            const request = store.get('auth_config');
+            request.onsuccess = (event) => resolve(event.target.result);
+            request.onerror = (event) => reject(event.target.error);
+        });
+
+        if (!config) {
+            throw new Error('Database credentials not initialized.');
+        }
+
+        if (pinOrPattern === null) {
+            // Disable decoy mode
+            config.decoySalt = null;
+            config.decoyVerificationCiphertext = null;
+            config.decoyVerificationIv = null;
+            await updateAuthConfig(config);
+            return;
+        }
+
+        // Generate decoy salt and derive key
+        const decoySalt = HelloCrypto.generateSalt();
+        const decoyKey = await HelloCrypto.deriveKey(pinOrPattern, decoySalt);
+        
+        // Encrypt verification phrase "HelloDiaryDecoy"
+        const { ciphertext, iv } = await HelloCrypto.encryptString('HelloDiaryDecoy', decoyKey);
+        
+        config.decoySalt = decoySalt;
+        config.decoyVerificationCiphertext = ciphertext;
+        config.decoyVerificationIv = iv;
+        
+        await updateAuthConfig(config);
+    }
+
+    async function saveIntruderCapture(imageDataUrl) {
+        const db = await initDatabase();
+        const record = {
+            id: generateUUID(),
+            timestamp: Date.now(),
+            image: imageDataUrl
+        };
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['intruder_captures'], 'readwrite');
+            const store = transaction.objectStore('intruder_captures');
+            const request = store.put(record);
+            request.onsuccess = () => resolve(record);
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    async function getIntruderCaptures() {
+        const db = await initDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['intruder_captures'], 'readonly');
+            const store = transaction.objectStore('intruder_captures');
+            const request = store.getAll();
+            request.onsuccess = () => {
+                const results = request.result || [];
+                // Sort by timestamp descending
+                results.sort((a, b) => b.timestamp - a.timestamp);
+                resolve(results);
+            };
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    async function deleteIntruderCapture(id) {
+        const db = await initDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['intruder_captures'], 'readwrite');
+            const store = transaction.objectStore('intruder_captures');
+            const request = store.delete(id);
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    async function clearIntruderCaptures() {
+        const db = await initDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['intruder_captures'], 'readwrite');
+            const store = transaction.objectStore('intruder_captures');
+            const request = store.clear();
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
     // Public API Exports
     return {
         initDatabase,
@@ -533,7 +653,12 @@ const HelloDB = (function() {
         getAllRawEntries,
         getAllSettings,
         restoreRawEntry,
-        restoreSetting
+        restoreSetting,
+        saveDecoyCredentials,
+        saveIntruderCapture,
+        getIntruderCaptures,
+        deleteIntruderCapture,
+        clearIntruderCaptures
     };
 
 })();

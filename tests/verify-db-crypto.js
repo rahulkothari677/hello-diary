@@ -51,8 +51,9 @@
 
         // 4. Verify Credentials (Success Case)
         log('Verifying unlock with CORRECT PIN ("123456")...');
-        const validKey = await HelloDB.verifyCredentials('123456');
-        assert(validKey instanceof CryptoKey, 'Success yields a valid CryptoKey object');
+        const result = await HelloDB.verifyCredentials('123456');
+        assert(result.key instanceof CryptoKey, 'Success yields a valid CryptoKey object');
+        assert(result.isDecoy === false, 'Decoy status should be false');
         log('✓ Unlock success verified.');
 
         // 5. Verify Credentials (Incorrect PIN & Lockout Case)
@@ -93,7 +94,7 @@
         });
         
         await HelloDB.saveCredentials('secret123');
-        const key = await HelloDB.verifyCredentials('secret123');
+        const { key } = await HelloDB.verifyCredentials('secret123');
 
         // 7. Insert Diary Entry (Encryption Check)
         log('Inserting a new entry containing sensitive text...');

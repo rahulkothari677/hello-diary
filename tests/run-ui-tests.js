@@ -1061,6 +1061,245 @@ async function main() {
             console.log('🎉 ALL STEP 9 PREMIUM BOOK BUILDER & PRINT TESTS PASSED! 🎉');
             console.log('=============================================================');
 
+            console.log('\n=== TEST FLOW I: ADVANCED BLUEPRINT FEATURES (DECOY, WORD CLOUD, MODALS) ===');
+            
+            // 1. Verify Word Cloud renders in Insights
+            console.log('Switching view to Insights tab...');
+            await evaluate('switchDashboardView("analytics")');
+            await sleep(500);
+            
+            let isWordCloudPresent = await evaluate('!!document.getElementById("insights-word-cloud-card")');
+            console.log('✓ Word Cloud Card element is present:', isWordCloudPresent);
+            if (!isWordCloudPresent) {
+                throw new Error('Word Cloud Card element is missing.');
+            }
+
+            // 2. Open Editor and click Draw button
+            console.log('Navigating to Editor...');
+            await evaluate('HelloApp.showScreen("screen-editor")');
+            await sleep(500);
+            
+            console.log('Clicking Draw button...');
+            await evaluate('document.getElementById("btn-draw-canvas").click()');
+            await sleep(300);
+            
+            let isDrawModalActive = await evaluate('document.getElementById("modal-drawing-canvas").classList.contains("active")');
+            console.log('✓ Drawing Canvas Modal active status:', isDrawModalActive);
+            if (!isDrawModalActive) {
+                throw new Error('Drawing Canvas Modal failed to open.');
+            }
+            
+            console.log('Closing Drawing Canvas Modal...');
+            await evaluate('document.getElementById("btn-draw-modal-cancel").click()');
+            await sleep(300);
+
+            // 3. Click Record button
+            console.log('Clicking Record Voice button...');
+            await evaluate('document.getElementById("btn-record-voice").click()');
+            await sleep(300);
+            
+            let isVoiceModalActive = await evaluate('document.getElementById("modal-voice-recorder").classList.contains("active")');
+            console.log('✓ Voice Note Modal active status:', isVoiceModalActive);
+            if (!isVoiceModalActive) {
+                throw new Error('Voice Note Modal failed to open.');
+            }
+            
+            console.log('Closing Voice Note Modal...');
+            await evaluate('document.getElementById("btn-voice-modal-cancel").click()');
+            await sleep(300);
+
+            // 4. Return to Dashboard and open Settings to setup decoy
+            console.log('Returning to Dashboard Settings...');
+            await evaluate('HelloApp.showScreen("screen-dashboard")');
+            await evaluate('switchDashboardView("settings")');
+            await sleep(300);
+
+            console.log('Enabling Decoy Mode toggle...');
+            await evaluate(`
+                const dt = document.getElementById("toggle-decoy-mode");
+                dt.checked = true;
+                dt.dispatchEvent(new Event("change"));
+            `);
+            await sleep(300);
+
+            console.log('Inputting decoy PIN: 654321...');
+            await evaluate(`
+                document.getElementById('decoy-pin-field').value = '654321';
+                document.getElementById('btn-save-decoy').click();
+            `);
+            await sleep(500);
+            
+            let decoyStatusText = await evaluate('document.getElementById("decoy-setup-status").textContent');
+            console.log('✓ Decoy setup status message:', decoyStatusText);
+            if (!decoyStatusText.includes('saved')) {
+                throw new Error('Failed to save decoy passcode.');
+            }
+
+            // 5. Lock screen and try to log in using Decoy PIN
+            console.log('Locking application...');
+            await evaluate('document.getElementById("btn-sidebar-lock").click()');
+            await sleep(500);
+
+            console.log('Submitting incorrect PIN to trigger webcam capture setting check...');
+            await evaluate(`{
+                const keys = document.querySelectorAll('#lock-pin-section .pin-key');
+                const key1 = Array.from(keys).find(k => k.dataset.value === '1');
+                const key2 = Array.from(keys).find(k => k.dataset.value === '2');
+                for(let i=0; i<5; i++) key1.click();
+                key2.click();
+            }`);
+            await sleep(500);
+            let incorrectPinError = await evaluate('document.getElementById("pin-error-msg").textContent');
+            console.log('✓ Received error for incorrect PIN:', incorrectPinError);
+
+            console.log('Logging in with Decoy PIN (654321)...');
+            await evaluate(`{
+                const keys = document.querySelectorAll('#lock-pin-section .pin-key');
+                const key6 = Array.from(keys).find(k => k.dataset.value === '6');
+                const key5 = Array.from(keys).find(k => k.dataset.value === '5');
+                const key4 = Array.from(keys).find(k => k.dataset.value === '4');
+                const key3 = Array.from(keys).find(k => k.dataset.value === '3');
+                const key2 = Array.from(keys).find(k => k.dataset.value === '2');
+                const key1 = Array.from(keys).find(k => k.dataset.value === '1');
+                key6.click(); key5.click(); key4.click(); key3.click(); key2.click(); key1.click();
+            }`);
+            await sleep(1000);
+
+            let currentScreen = await evaluate('document.querySelector(".screen.active").id');
+            console.log('✓ Current screen after Decoy login:', currentScreen);
+            if (currentScreen !== 'screen-dashboard') {
+                throw new Error('Decoy login failed to transition to dashboard.');
+            }
+
+            let isDecoySessionActive = await evaluate('HelloApp.isDecoy()');
+            console.log('✓ HelloApp isDecoy Session status:', isDecoySessionActive);
+            if (!isDecoySessionActive) {
+                throw new Error('HelloApp decoy session flag is false.');
+            }
+
+            console.log('Verifying Settings security options are hidden under Decoy mode...');
+            await evaluate('switchDashboardView("settings")');
+            await sleep(300);
+            
+            let decoySetupVisible = await evaluate('document.getElementById("decoy-mode-setup-container").style.display !== "none"');
+            let intruderLogsVisible = await evaluate('document.getElementById("settings-intruder-logs-card").style.display !== "none"');
+            console.log('✓ Decoy Setup Container visible status in Decoy mode:', decoySetupVisible);
+            console.log('✓ Intruder Logs Grid visible status in Decoy mode:', intruderLogsVisible);
+            if (decoySetupVisible || intruderLogsVisible) {
+                throw new Error('Decoy setups or Intruder logs are visible during Decoy session.');
+            }
+
+            console.log('\n=============================================================');
+            console.log('🎉 ALL BLUEPRINT ADVANCED FEATURE E2E TESTS PASSED! 🎉');
+            console.log('=============================================================');
+
+            console.log('\n=== TEST FLOW J: GALLERY GRID, GEOLOCATIONS & INTERACTIVE TRAVEL MAP ===');
+            
+            // 1. Lock and unlock to exit decoy mode
+            console.log('Locking app to exit decoy session...');
+            await evaluate('document.getElementById("btn-sidebar-lock").click()');
+            await sleep(500);
+
+            console.log('Switching to Pattern lock screen tab...');
+            await evaluate('document.querySelector(\'#screen-lock .auth-tab[data-method="pattern"]\').click()');
+            await sleep(500);
+
+            console.log('Drawing correct Pattern (0-1-2-4) to unlock...');
+            await evaluate(`{
+                const canvas = document.getElementById('pattern-canvas');
+                const rect = canvas.getBoundingClientRect();
+                const dispatch = (type, x, y) => {
+                    canvas.dispatchEvent(new MouseEvent(type, {
+                        clientX: rect.left + x,
+                        clientY: rect.top + y,
+                        bubbles: true
+                    }));
+                };
+                dispatch('mousedown', 40, 40);   // Node 0
+                dispatch('mousemove', 140, 40);  // Node 1
+                dispatch('mousemove', 240, 40);  // Node 2
+                dispatch('mousemove', 140, 140); // Node 4
+                dispatch('mouseup', 140, 140);
+            }`);
+            await sleep(1000);
+
+            let isDecoyActiveNow = await evaluate('HelloApp.isDecoy()');
+            console.log('✓ Decoy session status in standard mode:', isDecoyActiveNow);
+            if (isDecoyActiveNow) throw new Error('Decoy session flag is still true after normal login.');
+
+            // 2. Open editor, write entry with base64 image and location metadata
+            console.log('Navigating to Editor...');
+            await evaluate('HelloApp.showScreen("screen-editor")');
+            await sleep(500);
+
+            console.log('Writing entry content with inline image drawing...');
+            await evaluate(`
+                document.getElementById('rich-editor-field').innerHTML = '<h1>Travel Sketch</h1><p>Drawing at the Golden Gate Bridge.</p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==">';
+                document.getElementById('rich-editor-field').dispatchEvent(new Event('input'));
+            `);
+
+            console.log('Tagging entry with location: San Francisco...');
+            await evaluate(`
+                document.getElementById('editor-location-input').value = 'San Francisco';
+                document.getElementById('editor-location-input').dispatchEvent(new Event('input'));
+            `);
+            await sleep(300);
+
+            console.log('Saving entry...');
+            await evaluate('document.getElementById("btn-editor-back").click()');
+            await sleep(1000);
+
+            // 3. Switch to Gallery view, verify drawing card is rendered
+            console.log('Switching view to Gallery tab...');
+            await evaluate('switchDashboardView("gallery")');
+            await sleep(500);
+
+            let hasDrawingCard = await evaluate('!!document.querySelector("#gallery-grid .gallery-card")');
+            console.log('✓ Drawing card rendered in gallery grid:', hasDrawingCard);
+            if (!hasDrawingCard) throw new Error('Drawing card not found in gallery grid.');
+
+            // 4. Click gallery card, check if detail modal opens
+            console.log('Clicking gallery drawing card...');
+            await evaluate('document.querySelector("#gallery-grid .gallery-card").click()');
+            await sleep(500);
+
+            let isModalActive = await evaluate('document.getElementById("modal-view-entry").classList.contains("active")');
+            console.log('✓ Detail modal is active:', isModalActive);
+            if (!isModalActive) throw new Error('Detail modal failed to open.');
+
+            console.log('Closing detail modal...');
+            await evaluate('document.getElementById("btn-view-modal-close").click()');
+            await sleep(300);
+
+            // 5. Switch to Map view, verify pin is plotted
+            console.log('Switching view to Map tab...');
+            await evaluate('switchDashboardView("map")');
+            await sleep(500);
+
+            let pinsCount = await evaluate('document.querySelectorAll("#map-pins-container .map-pin").length');
+            console.log('✓ Map geolocated pins count:', pinsCount);
+            if (pinsCount !== 1) throw new Error('Expected 1 pin on the travel map, got ' + pinsCount);
+
+            // 6. Click pin to check tooltip card metadata
+            console.log('Clicking geolocated pin...');
+            await evaluate(`
+                const pin = document.querySelector("#map-pins-container .map-pin");
+                pin.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            `);
+            await sleep(300);
+
+            let isTooltipVisible = await evaluate('document.getElementById("map-tooltip-card").style.display !== "none"');
+            let tooltipTitle = await evaluate('document.getElementById("map-tooltip-title").textContent');
+            console.log('✓ Map pin click tooltip visible status:', isTooltipVisible);
+            console.log('✓ Map pin click tooltip location title:', tooltipTitle);
+            if (!isTooltipVisible || tooltipTitle !== 'San Francisco') {
+                throw new Error('Travel map pin click tooltip failed to show correct metadata.');
+            }
+
+            console.log('\n=============================================================');
+            console.log('🎉 ALL STEP 10 GALLERY & TRAVEL MAP E2E TESTS PASSED! 🎉');
+            console.log('=============================================================');
+
             ws.close();
             chrome.kill();
             process.exit(0);

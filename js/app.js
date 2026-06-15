@@ -206,6 +206,8 @@ const HelloApp = (function() {
     
     // In-memory key backup to allow mock biometrics to unlock within an active session
     let biometricBackupKey = null;
+    let isDecoySession = false;
+    let biometricBackupIsDecoy = false;
 
     // Countdown timer interval for lockout screen
     let lockoutIntervalId = null;
@@ -286,6 +288,32 @@ const HelloApp = (function() {
             const bioToggle = document.getElementById('toggle-biometrics');
             if (bioToggle) {
                 bioToggle.checked = !!bioConfig;
+            }
+
+            // Load camera intruder settings checkbox state
+            const cameraConfig = await HelloDB.getSetting('intruder_camera_enabled');
+            const cameraToggle = document.getElementById('toggle-intruder-camera');
+            if (cameraToggle) {
+                cameraToggle.checked = !!cameraConfig;
+            }
+
+            // Load decoy mode settings checkbox state
+            const decoyToggle = document.getElementById('toggle-decoy-mode');
+            if (decoyToggle) {
+                const db = await HelloDB.initDatabase();
+                const authConfig = await new Promise((resolve) => {
+                    const transaction = db.transaction(['credentials'], 'readonly');
+                    const store = transaction.objectStore('credentials');
+                    const request = store.get('auth_config');
+                    request.onsuccess = (e) => resolve(e.target.result);
+                    request.onerror = () => resolve(null);
+                });
+                const decoyActive = authConfig && !!authConfig.decoyVerificationCiphertext;
+                decoyToggle.checked = decoyActive;
+                const decoySetupDiv = document.getElementById('decoy-passcode-setup');
+                if (decoySetupDiv) {
+                    decoySetupDiv.style.display = decoyActive ? 'block' : 'none';
+                }
             }
 
             // 5. Check lockout status
@@ -473,8 +501,11 @@ const HelloApp = (function() {
                     await HelloDB.setSetting('theme', themeId);
 
                     // 2. Perform verification to derive key and cache in volatile RAM closure
-                    sessionKey = await HelloDB.verifyCredentials(setupFinalPasscode);
+                    const result = await HelloDB.verifyCredentials(setupFinalPasscode);
+                    sessionKey = result.key;
+                    isDecoySession = result.isDecoy;
                     biometricBackupKey = sessionKey;
+                    biometricBackupIsDecoy = isDecoySession;
 
                     showToast('Setup complete! Welcome to Hello Diary ✨');
                     showScreen('screen-dashboard');
@@ -630,12 +661,14 @@ const HelloApp = (function() {
                     setPinKeysDisabled(true);
                     console.log('Submitting PIN for verification:', lockEnteredPin);
                     try {
-                        const key = await HelloDB.verifyCredentials(lockEnteredPin);
+                        const result = await HelloDB.verifyCredentials(lockEnteredPin);
                         console.log('Verification success!');
                         
                         // Success
-                        sessionKey = key;
-                        biometricBackupKey = key;
+                        sessionKey = result.key;
+                        isDecoySession = result.isDecoy;
+                        biometricBackupKey = sessionKey;
+                        biometricBackupIsDecoy = isDecoySession;
                         lockEnteredPin = '';
                         lockPinDots.forEach(d => d.classList.remove('filled'));
 
@@ -646,6 +679,10 @@ const HelloApp = (function() {
                         }
                     } catch (err) {
                         console.error('Verification failure:', err.message);
+                        const cameraEnabled = await HelloDB.getSetting('intruder_camera_enabled');
+                        if (cameraEnabled) {
+                            captureIntruderPhoto();
+                        }
                         // Failure
                         lockEnteredPin = '';
                         lockPinDots.forEach(dot => {
@@ -678,11 +715,13 @@ const HelloApp = (function() {
 
             lockPatternCanvas.setDisabled(true);
             try {
-                const key = await HelloDB.verifyCredentials(sequence);
+                const result = await HelloDB.verifyCredentials(sequence);
                 
                 // Success
-                sessionKey = key;
-                biometricBackupKey = key;
+                sessionKey = result.key;
+                isDecoySession = result.isDecoy;
+                biometricBackupKey = sessionKey;
+                biometricBackupIsDecoy = isDecoySession;
                 lockPatternCanvas.clear();
 
                 showToast('Welcome back to your Sanctuary! 🌙');
@@ -692,6 +731,10 @@ const HelloApp = (function() {
                 }
             } catch (err) {
                 // Failure
+                const cameraEnabled = await HelloDB.getSetting('intruder_camera_enabled');
+                if (cameraEnabled) {
+                    captureIntruderPhoto();
+                }
                 lockPatternCanvas.clear();
                 document.getElementById('pattern-error-msg').textContent = err.message;
                 await checkLockoutState();
@@ -729,6 +772,7 @@ const HelloApp = (function() {
 
                     if (biometricBackupKey) {
                         sessionKey = biometricBackupKey;
+                        isDecoySession = biometricBackupIsDecoy;
                         showToast('Welcome back via Biometrics! 🌙');
                         showScreen('screen-dashboard');
                         if (window.switchDashboardView) {
@@ -753,6 +797,7 @@ const HelloApp = (function() {
             sidebarLock.addEventListener('click', () => {
                 // Purge key from memory
                 sessionKey = null;
+                isDecoySession = false;
                 
                 // Clear UI states
                 lockEnteredPin = '';
@@ -780,6 +825,263 @@ const HelloApp = (function() {
                     showToast('Failed to update biometric setting.');
                 }
             });
+        }
+
+        // Intruder camera detection toggle switch binding
+        const cameraToggle = document.getElementById('toggle-intruder-camera');
+        if (cameraToggle) {
+            cameraToggle.addEventListener('change', async (e) => {
+                try {
+                    if (e.target.checked) {
+                        try {
+                            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                            stream.getTracks().forEach(track => track.stop());
+                        } catch (permErr) {
+                            e.target.checked = false;
+                            showToast('Webcam access is required to enable this feature.');
+                            return;
+                        }
+                    }
+                    await HelloDB.setSetting('intruder_camera_enabled', e.target.checked);
+                    showToast(e.target.checked ? 'Intruder camera capture enabled.' : 'Intruder camera capture disabled.');
+                } catch (err) {
+                    console.error('Failed to save intruder camera setting:', err);
+                    showToast('Failed to update intruder camera setting.');
+                }
+            });
+        }
+
+        // Decoy Mode setup toggle switch binding
+        const decoyToggle = document.getElementById('toggle-decoy-mode');
+        const decoySetupDiv = document.getElementById('decoy-passcode-setup');
+        if (decoyToggle && decoySetupDiv) {
+            decoyToggle.addEventListener('change', async (e) => {
+                if (e.target.checked) {
+                    decoySetupDiv.style.display = 'block';
+                    document.getElementById('btn-decoy-method-pin').click();
+                } else {
+                    try {
+                        await HelloDB.saveDecoyCredentials(null);
+                        decoySetupDiv.style.display = 'none';
+                        showToast('Decoy Mode disabled.');
+                    } catch (err) {
+                        console.error('Error disabling decoy mode:', err);
+                    }
+                }
+            });
+        }
+
+        // Decoy method selection
+        let decoyMethod = 'pin';
+        const decoyPinBtn = document.getElementById('btn-decoy-method-pin');
+        const decoyPatternBtn = document.getElementById('btn-decoy-method-pattern');
+        const decoyPinArea = document.getElementById('decoy-pin-input-area');
+        const decoyPatternArea = document.getElementById('decoy-pattern-input-area');
+        
+        let decoyPatternCanvas = null;
+
+        if (decoyPinBtn && decoyPatternBtn) {
+            decoyPinBtn.addEventListener('click', () => {
+                decoyMethod = 'pin';
+                decoyPinBtn.classList.add('active');
+                decoyPatternBtn.classList.remove('active');
+                decoyPinArea.style.display = 'block';
+                decoyPatternArea.style.display = 'none';
+            });
+
+            decoyPatternBtn.addEventListener('click', () => {
+                decoyMethod = 'pattern';
+                decoyPatternBtn.classList.add('active');
+                decoyPinBtn.classList.remove('active');
+                decoyPinArea.style.display = 'none';
+                decoyPatternArea.style.display = 'block';
+                
+                if (!decoyPatternCanvas) {
+                    decoyPatternCanvas = new PatternCanvas('decoy-pattern-canvas');
+                } else {
+                    decoyPatternCanvas.clear();
+                }
+            });
+        }
+
+        // Save decoy credentials
+        const saveDecoyBtn = document.getElementById('btn-save-decoy');
+        const decoySetupStatus = document.getElementById('decoy-setup-status');
+        if (saveDecoyBtn) {
+            saveDecoyBtn.addEventListener('click', async () => {
+                decoySetupStatus.textContent = '';
+                decoySetupStatus.style.color = 'var(--text-primary)';
+                
+                try {
+                    let passcode = '';
+                    if (decoyMethod === 'pin') {
+                        const pinVal = document.getElementById('decoy-pin-field').value;
+                        if (pinVal.length !== 6 || !/^\d+$/.test(pinVal)) {
+                            decoySetupStatus.textContent = 'PIN must be exactly 6 digits.';
+                            decoySetupStatus.style.color = '#ff5252';
+                            return;
+                        }
+                        passcode = pinVal;
+                    } else {
+                        if (!decoyPatternCanvas || decoyPatternCanvas.selectedNodes.length < 4) {
+                            decoySetupStatus.textContent = 'Pattern must connect at least 4 nodes.';
+                            decoySetupStatus.style.color = '#ff5252';
+                            return;
+                        }
+                        passcode = decoyPatternCanvas.selectedNodes.map(n => n.id).join('');
+                    }
+
+                    await HelloDB.saveDecoyCredentials(passcode);
+                    decoySetupStatus.textContent = 'Decoy passcode saved successfully!';
+                    decoySetupStatus.style.color = 'var(--accent)';
+                    showToast('Decoy passcode saved!');
+                    
+                    document.getElementById('decoy-pin-field').value = '';
+                    if (decoyPatternCanvas) decoyPatternCanvas.clear();
+                } catch (err) {
+                    console.error('Failed to save decoy passcode:', err);
+                    decoySetupStatus.textContent = 'Failed to save decoy passcode.';
+                    decoySetupStatus.style.color = '#ff5252';
+                }
+            });
+        }
+
+        // Clear intruder captures button
+        const clearIntrudersBtn = document.getElementById('btn-clear-intruders');
+        if (clearIntrudersBtn) {
+            clearIntrudersBtn.addEventListener('click', async () => {
+                if (confirm('Are you sure you want to clear all intruder logs?')) {
+                    await HelloDB.clearIntruderCaptures();
+                    showToast('Intruder logs cleared.');
+                    refreshIntruderLogsUI();
+                }
+            });
+        }
+    }
+
+    /**
+     * Captures a snapshot using the user's webcam on a failed authentication attempt.
+     */
+    async function captureIntruderPhoto() {
+        try {
+            console.log('Attempting to capture intruder photo...');
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
+            
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.setAttribute('playsinline', 'true');
+            video.muted = true;
+            
+            await new Promise((resolve, reject) => {
+                video.onloadedmetadata = () => {
+                    video.play().then(resolve).catch(reject);
+                };
+                video.onerror = reject;
+                setTimeout(() => reject(new Error('Webcam load timeout')), 2000);
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 320;
+            canvas.height = 240;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, 320, 240);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+            
+            stream.getTracks().forEach(track => track.stop());
+            
+            await HelloDB.saveIntruderCapture(dataUrl);
+            console.log('Intruder snapshot stored successfully.');
+            
+            await refreshIntruderLogsUI();
+        } catch (err) {
+            console.warn('Unable to capture intruder photo:', err);
+        }
+    }
+
+    /**
+     * Renders all intruder capture logs in the Settings security area.
+     */
+    async function refreshIntruderLogsUI() {
+        const grid = document.getElementById('intruder-logs-grid');
+        const emptyEl = document.getElementById('intruder-logs-empty');
+        if (!grid || !emptyEl) return;
+
+        if (isDecoySession) {
+            const logsCard = document.getElementById('settings-intruder-logs-card');
+            if (logsCard) logsCard.style.display = 'none';
+            const decoyCard = document.getElementById('decoy-mode-setup-container');
+            if (decoyCard) decoyCard.style.display = 'none';
+            return;
+        } else {
+            const logsCard = document.getElementById('settings-intruder-logs-card');
+            if (logsCard) logsCard.style.display = 'block';
+            const decoyCard = document.getElementById('decoy-mode-setup-container');
+            if (decoyCard) decoyCard.style.display = 'block';
+        }
+
+        try {
+            const logs = await HelloDB.getIntruderCaptures();
+            grid.innerHTML = '';
+            
+            if (logs.length === 0) {
+                emptyEl.style.display = 'block';
+                return;
+            }
+            
+            emptyEl.style.display = 'none';
+            
+            logs.forEach(log => {
+                const card = document.createElement('div');
+                card.className = 'intruder-card';
+                
+                const img = document.createElement('img');
+                img.src = log.image;
+                img.className = 'intruder-img';
+                img.alt = 'Intruder Snapshot';
+                
+                const meta = document.createElement('div');
+                meta.className = 'intruder-meta';
+                
+                const dateStr = new Date(log.timestamp).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric'
+                });
+                const timeStr = new Date(log.timestamp).toLocaleTimeString(undefined, {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                
+                const timeSpan = document.createElement('span');
+                timeSpan.style.fontWeight = 'bold';
+                timeSpan.textContent = dateStr;
+                
+                const subSpan = document.createElement('span');
+                subSpan.textContent = timeStr;
+                
+                meta.appendChild(timeSpan);
+                meta.appendChild(subSpan);
+                
+                const delBtn = document.createElement('button');
+                delBtn.className = 'intruder-delete-btn';
+                delBtn.innerHTML = '&times;';
+                delBtn.title = 'Delete Log Entry';
+                delBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await HelloDB.deleteIntruderCapture(log.id);
+                    showToast('Log entry deleted.');
+                    refreshIntruderLogsUI();
+                });
+                
+                card.appendChild(img);
+                card.appendChild(meta);
+                card.appendChild(delBtn);
+                grid.appendChild(card);
+            });
+        } catch (err) {
+            console.error('Error fetching intruder logs:', err);
         }
     }
 
@@ -889,6 +1191,8 @@ const HelloApp = (function() {
             renderOnThisDay();
             renderSearchFilters();
             renderAnalytics();
+            renderGallery();
+            renderMap();
         } catch (err) {
             console.error('Failed to load dashboard data:', err);
             showToast('Error decrypting diary entries.');
@@ -1340,6 +1644,9 @@ const HelloApp = (function() {
         
         document.getElementById('editor-tags-list').innerHTML = '';
         
+        const locInput = document.getElementById('editor-location-input');
+        if (locInput) locInput.value = '';
+        
         const saveBadge = document.getElementById('save-indicator-badge');
         if (saveBadge) saveBadge.classList.remove('show');
         
@@ -1377,6 +1684,9 @@ const HelloApp = (function() {
             entry.tags.forEach(t => appendTagPill(t, false));
         }
         
+        const locInput = document.getElementById('editor-location-input');
+        if (locInput) locInput.value = entry.location || '';
+        
         const saveBadge = document.getElementById('save-indicator-badge');
         if (saveBadge) saveBadge.classList.remove('show');
         
@@ -1400,11 +1710,15 @@ const HelloApp = (function() {
             if (text) tags.push(text);
         });
         
+        const locInput = document.getElementById('editor-location-input');
+        const locationVal = locInput ? locInput.value.trim() : '';
+        
         const entryObj = {
             title: title,
             content: content,
             tags: tags,
             mood: moodVal,
+            location: locationVal,
             date: activeEntryDate || Date.now()
         };
         
@@ -1613,7 +1927,11 @@ const HelloApp = (function() {
         };
         
         document.getElementById('view-modal-title').textContent = entry.title || 'Untitled';
-        document.getElementById('view-modal-subtitle').textContent = `${formattedDate} · ${MOODS_MAP[entry.mood]?.emoji || '😐'} ${MOODS_MAP[entry.mood]?.name || 'Okay'}`;
+        let subtitle = `${formattedDate} · ${MOODS_MAP[entry.mood]?.emoji || '😐'} ${MOODS_MAP[entry.mood]?.name || 'Okay'}`;
+        if (entry.location) {
+            subtitle += ` · 📍 ${entry.location}`;
+        }
+        document.getElementById('view-modal-subtitle').textContent = subtitle;
         document.getElementById('view-modal-body').innerHTML = entry.content || '';
         
         viewModal.classList.add('active');
@@ -2188,6 +2506,167 @@ const HelloApp = (function() {
         });
     }
 
+    // --------------------------------------------------------------------------
+    // GALLERY AND GEOLOCATED TRAVEL MAP VIEWS
+    // --------------------------------------------------------------------------
+    const locationCoords = {
+        "san francisco": { x: 150, y: 140 },
+        "new york": { x: 220, y: 130 },
+        "london": { x: 348, y: 102 },
+        "paris": { x: 365, y: 115 },
+        "tokyo": { x: 720, y: 130 },
+        "sydney": { x: 680, y: 330 },
+        "cairo": { x: 420, y: 180 },
+        "cape town": { x: 450, y: 340 },
+        "mumbai": { x: 520, y: 190 },
+        "delhi": { x: 525, y: 175 },
+        "rio de janeiro": { x: 210, y: 310 },
+        "berlin": { x: 385, y: 105 },
+        "rome": { x: 385, y: 125 },
+        "moscow": { x: 430, y: 95 },
+        "beijing": { x: 630, y: 125 },
+        "singapore": { x: 580, y: 225 }
+    };
+
+    function getCoordsForLocation(locName) {
+        const norm = locName.trim().toLowerCase();
+        if (locationCoords[norm]) {
+            return locationCoords[norm];
+        }
+        let hash = 0;
+        for (let i = 0; i < norm.length; i++) {
+            hash = norm.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const x = 100 + Math.abs(hash % 600);
+        const y = 80 + Math.abs((hash >> 8) % 300);
+        return { x, y };
+    }
+
+    function renderGallery() {
+        const grid = document.getElementById('gallery-grid');
+        const emptyEl = document.getElementById('gallery-empty-state');
+        if (!grid || !emptyEl) return;
+        
+        grid.innerHTML = '';
+        
+        if (isDecoySession) {
+            grid.style.display = 'none';
+            emptyEl.style.display = 'flex';
+            return;
+        }
+        
+        const images = [];
+        cachedEntries.forEach(entry => {
+            const regex = /src=["'](data:image\/[^"']+)["']/g;
+            let match;
+            while ((match = regex.exec(entry.content)) !== null) {
+                images.push({
+                    src: match[1],
+                    entry: entry
+                });
+            }
+        });
+        
+        if (images.length === 0) {
+            grid.style.display = 'none';
+            emptyEl.style.display = 'flex';
+        } else {
+            emptyEl.style.display = 'none';
+            grid.style.display = 'grid';
+            
+            images.forEach(img => {
+                const card = document.createElement('div');
+                card.className = 'gallery-card';
+                card.innerHTML = `
+                    <img src="${img.src}" alt="Sketch" />
+                    <div class="gallery-card-overlay">
+                        <div class="gallery-card-title">${escapeHtml(img.entry.title)}</div>
+                        <div class="gallery-card-date">${new Date(img.entry.date).toLocaleDateString()}</div>
+                    </div>
+                `;
+                card.onclick = () => {
+                    openViewModal(img.entry);
+                };
+                grid.appendChild(card);
+            });
+        }
+    }
+
+    function showMapTooltip(entry, coords) {
+        const tooltip = document.getElementById('map-tooltip-card');
+        const titleEl = document.getElementById('map-tooltip-title');
+        const dateEl = document.getElementById('map-tooltip-date');
+        const snippetEl = document.getElementById('map-tooltip-snippet');
+        const btnView = document.getElementById('map-tooltip-btn-view');
+        
+        if (!tooltip || !titleEl || !dateEl || !snippetEl || !btnView) return;
+        
+        titleEl.textContent = entry.location;
+        dateEl.textContent = new Date(entry.date).toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        });
+        
+        const cleanBody = entry.content.replace(/<\/?[^>]+(>|$)/g, " ");
+        snippetEl.textContent = entry.title ? `${entry.title}: ${cleanBody}` : cleanBody;
+        
+        tooltip.style.display = 'block';
+        
+        btnView.onclick = () => {
+            openViewModal(entry);
+        };
+    }
+
+    function renderMap() {
+        const pinsContainer = document.getElementById('map-pins-container');
+        if (!pinsContainer) return;
+        
+        pinsContainer.innerHTML = '';
+        
+        const tooltip = document.getElementById('map-tooltip-card');
+        if (tooltip) tooltip.style.display = 'none';
+        
+        if (isDecoySession) {
+            return;
+        }
+        
+        const geolocatedEntries = cachedEntries.filter(e => e.location && e.location.trim() !== '');
+        
+        geolocatedEntries.forEach(entry => {
+            const coords = getCoordsForLocation(entry.location);
+            
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('class', 'map-pin map-pin-animate');
+            g.setAttribute('transform', `translate(${coords.x}, ${coords.y})`);
+            
+            const outerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            outerCircle.setAttribute('class', 'outer');
+            outerCircle.setAttribute('cx', '0');
+            outerCircle.setAttribute('cy', '0');
+            outerCircle.setAttribute('r', '8');
+            outerCircle.setAttribute('fill', 'rgba(107, 127, 215, 0.4)');
+            outerCircle.setAttribute('stroke', 'var(--accent)');
+            outerCircle.setAttribute('stroke-width', '1.5');
+            
+            const innerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            innerCircle.setAttribute('cx', '0');
+            innerCircle.setAttribute('cy', '0');
+            innerCircle.setAttribute('r', '4');
+            innerCircle.setAttribute('fill', '#ffffff');
+            
+            g.appendChild(outerCircle);
+            g.appendChild(innerCircle);
+            
+            g.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showMapTooltip(entry, coords);
+            });
+            
+            pinsContainer.appendChild(g);
+        });
+    }
+
     /**
      * Entrypoint rendering function for the entire Insights Dashboard tab.
      */
@@ -2293,6 +2772,97 @@ const HelloApp = (function() {
                 }).join('');
             }
         }
+        
+        // 7. Render Emotional Word Cloud
+        renderWordCloud();
+    }
+
+    /**
+     * Renders a premium, dynamic word cloud on the insights panel.
+     */
+    function renderWordCloud() {
+        const container = document.getElementById('word-cloud-container');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        // Stop words list to clean text tokens
+        const stopWords = new Set([
+            'the', 'and', 'a', 'to', 'of', 'in', 'i', 'is', 'that', 'it', 'on', 'you', 'this', 'for', 'but', 'with', 
+            'as', 'are', 'was', 'were', 'be', 'been', 'has', 'have', 'had', 'do', 'does', 'did', 'an', 'at', 'by', 
+            'from', 'or', 'so', 'if', 'we', 'they', 'my', 'our', 'he', 'she', 'him', 'her', 'them', 'their', 'me', 
+            'us', 'will', 'would', 'should', 'can', 'could', 'about', 'just', 'more', 'some', 'about', 'very', 
+            'this', 'that', 'then', 'than', 'there', 'their', 'them', 'what', 'which', 'who', 'how', 'why', 'when',
+            'where', 'out', 'up', 'down', 'into', 'over', 'under', 'again', 'further', 'once', 'here', 'there',
+            'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only',
+            'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now',
+            'about', 'write', 'entry', 'diary', 'today', 'really', 'feel', 'felt', 'much', 'like', 'good', 'day', 'days',
+            'time', 'went', 'got', 'know', 'think', 'going', 'things', 'thing', 'one', 'new', 'want', 'see', 'make',
+            'look', 'back', 'come', 'take', 'way', 'well', 'people', 'first', 'even', 'also', 'after', 'always', 'still',
+            'something', 'nothing', 'someone', 'everyone', 'everything'
+        ]);
+
+        const wordFreq = {};
+        
+        // Loop over cachedEntries
+        cachedEntries.forEach(entry => {
+            const content = entry.content || '';
+            // Strip HTML tags using regex to avoid parsing HTML as text
+            const text = content.replace(/<\/?[^>]+(>|$)/g, ' ');
+            
+            // Extract word tokens
+            const words = text.toLowerCase().match(/\b[a-z]{3,15}\b/g);
+            if (!words) return;
+            
+            words.forEach(word => {
+                if (!stopWords.has(word)) {
+                    wordFreq[word] = (wordFreq[word] || 0) + 1;
+                }
+            });
+        });
+        
+        // Sort words by frequency
+        const sortedWords = Object.entries(wordFreq)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 30); // Top 30 words
+            
+        if (sortedWords.length === 0) {
+            container.innerHTML = '<span style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; width: 100%;">Write more diary entries to see your emotional word cloud!</span>';
+            return;
+        }
+        
+        const maxFreq = sortedWords[0][1];
+        const minFreq = sortedWords[sortedWords.length - 1][1];
+        const range = maxFreq - minFreq || 1;
+        
+        // Randomize order for a natural cloud layout
+        const randomizedWords = sortedWords.sort(() => Math.random() - 0.5);
+        
+        randomizedWords.forEach(([word, freq]) => {
+            const tag = document.createElement('span');
+            tag.className = 'word-cloud-tag';
+            tag.textContent = word;
+            tag.title = `${freq} occurrence(s)`;
+            
+            // Map frequency to size class (wc-1 to wc-5)
+            const score = 1 + Math.round(((freq - minFreq) / range) * 4);
+            tag.classList.add(`wc-${score}`);
+            
+            // Click to filter by word search!
+            tag.addEventListener('click', () => {
+                const searchField = document.getElementById('search-text-input');
+                if (searchField) {
+                    searchField.value = word;
+                    searchField.dispatchEvent(new Event('input', { bubbles: true }));
+                    
+                    if (window.switchDashboardView) {
+                        window.switchDashboardView('timeline');
+                    }
+                }
+            });
+            
+            container.appendChild(tag);
+        });
     }
 
     /**
@@ -2560,6 +3130,26 @@ const HelloApp = (function() {
                 drawMoodTrendChart();
             });
         }
+
+        const travelMapSvg = document.getElementById('travel-map-svg');
+        if (travelMapSvg) {
+            travelMapSvg.addEventListener('click', () => {
+                const tooltip = document.getElementById('map-tooltip-card');
+                if (tooltip) tooltip.style.display = 'none';
+            });
+        }
+
+        const locInput = document.getElementById('editor-location-input');
+        if (locInput) {
+            locInput.addEventListener('input', () => {
+                editorDirty = true;
+                const saveBadge = document.getElementById('save-indicator-badge');
+                if (saveBadge) {
+                    saveBadge.textContent = 'Unsaved Changes';
+                    saveBadge.classList.add('show');
+                }
+            });
+        }
     }
 
     /**
@@ -2813,6 +3403,397 @@ const HelloApp = (function() {
                 if (dropdown) dropdown.classList.remove('active');
             });
         });
+
+        // =====================================================================
+        // DRAWING CANVAS CONTROLLER
+        // =====================================================================
+        const btnDraw = document.getElementById('btn-draw-canvas');
+        const modalDraw = document.getElementById('modal-drawing-canvas');
+        const canvasDraw = document.getElementById('editor-drawing-canvas');
+        const btnDrawCancel = document.getElementById('btn-draw-modal-cancel');
+        const btnDrawClose = document.getElementById('btn-draw-modal-close');
+        const btnDrawInsert = document.getElementById('btn-draw-modal-insert');
+        
+        if (btnDraw && modalDraw && canvasDraw) {
+            const ctxDraw = canvasDraw.getContext('2d');
+            let isDrawingSketch = false;
+            let lastX = 0;
+            let lastY = 0;
+            let drawColor = '#6B7FD7';
+            let drawSize = 5;
+            let drawTool = 'pen'; // 'pen' or 'eraser'
+            
+            // Set canvas size correctly matching styles
+            canvasDraw.width = 450;
+            canvasDraw.height = 300;
+            
+            // Clear canvas to solid white initially
+            function clearDrawingCanvas() {
+                ctxDraw.fillStyle = '#ffffff';
+                ctxDraw.fillRect(0, 0, canvasDraw.width, canvasDraw.height);
+            }
+            clearDrawingCanvas();
+
+            btnDraw.addEventListener('click', () => {
+                modalDraw.classList.add('active');
+                clearDrawingCanvas();
+                // Reset controls
+                drawTool = 'pen';
+                document.getElementById('btn-draw-tool-pen').classList.add('active');
+                document.getElementById('btn-draw-tool-eraser').classList.remove('active');
+                document.getElementById('draw-brush-color').value = '#6B7FD7';
+                drawColor = '#6B7FD7';
+                document.getElementById('draw-brush-size').value = 5;
+                drawSize = 5;
+                document.getElementById('draw-brush-size-val').textContent = '5px';
+            });
+
+            const closeDrawModal = () => {
+                modalDraw.classList.remove('active');
+            };
+
+            btnDrawCancel.addEventListener('click', closeDrawModal);
+            btnDrawClose.addEventListener('click', closeDrawModal);
+
+            // Tools selection
+            const penBtn = document.getElementById('btn-draw-tool-pen');
+            const eraserBtn = document.getElementById('btn-draw-tool-eraser');
+            
+            penBtn.addEventListener('click', () => {
+                drawTool = 'pen';
+                penBtn.classList.add('active');
+                eraserBtn.classList.remove('active');
+            });
+            
+            eraserBtn.addEventListener('click', () => {
+                drawTool = 'eraser';
+                eraserBtn.classList.add('active');
+                penBtn.classList.remove('active');
+            });
+
+            // Brush size slider
+            const sizeSlider = document.getElementById('draw-brush-size');
+            sizeSlider.addEventListener('input', (e) => {
+                drawSize = parseInt(e.target.value);
+                document.getElementById('draw-brush-size-val').textContent = drawSize + 'px';
+            });
+
+            // Brush color picker
+            const colorPicker = document.getElementById('draw-brush-color');
+            colorPicker.addEventListener('input', (e) => {
+                drawColor = e.target.value;
+            });
+
+            // Clear button
+            document.getElementById('btn-draw-clear').addEventListener('click', () => {
+                clearDrawingCanvas();
+            });
+
+            // Drawing logic (Mouse / Touch)
+            function getCoords(e) {
+                const rect = canvasDraw.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                // Scale coordinates because client width/height might differ from canvas buffer width/height
+                return {
+                    x: ((clientX - rect.left) / rect.width) * canvasDraw.width,
+                    y: ((clientY - rect.top) / rect.height) * canvasDraw.height
+                };
+            }
+
+            function startDrawing(e) {
+                e.preventDefault();
+                isDrawingSketch = true;
+                const coords = getCoords(e);
+                lastX = coords.x;
+                lastY = coords.y;
+            }
+
+            function drawStroke(e) {
+                if (!isDrawingSketch) return;
+                e.preventDefault();
+                const coords = getCoords(e);
+                
+                ctxDraw.beginPath();
+                ctxDraw.moveTo(lastX, lastY);
+                ctxDraw.lineTo(coords.x, coords.y);
+                ctxDraw.strokeStyle = drawTool === 'eraser' ? '#ffffff' : drawColor;
+                ctxDraw.lineWidth = drawSize;
+                ctxDraw.lineCap = 'round';
+                ctxDraw.lineJoin = 'round';
+                ctxDraw.stroke();
+                
+                lastX = coords.x;
+                lastY = coords.y;
+            }
+
+            function stopDrawing() {
+                isDrawingSketch = false;
+            }
+
+            canvasDraw.addEventListener('mousedown', startDrawing);
+            canvasDraw.addEventListener('mousemove', drawStroke);
+            window.addEventListener('mouseup', stopDrawing);
+
+            canvasDraw.addEventListener('touchstart', startDrawing, { passive: false });
+            canvasDraw.addEventListener('touchmove', drawStroke, { passive: false });
+            window.addEventListener('touchend', stopDrawing);
+
+            // Insert drawing
+            btnDrawInsert.addEventListener('click', () => {
+                const dataUrl = canvasDraw.toDataURL('image/png');
+                
+                // Insert into rich editor field
+                editorField.focus();
+                
+                // Get range, fall back to end of editor if empty
+                let range;
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0) {
+                    range = sel.getRangeAt(0);
+                    // Ensure the range is inside the editorField
+                    let node = range.commonAncestorContainer;
+                    let isInside = false;
+                    while (node) {
+                        if (node === editorField) {
+                            isInside = true;
+                            break;
+                        }
+                        node = node.parentNode;
+                    }
+                    if (!isInside) {
+                        range = document.createRange();
+                        range.selectNodeContents(editorField);
+                        range.collapse(false);
+                    }
+                } else {
+                    range = document.createRange();
+                    range.selectNodeContents(editorField);
+                    range.collapse(false);
+                }
+
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                img.className = 'diary-inserted-sketch';
+                img.style.maxWidth = '100%';
+                img.style.borderRadius = 'var(--radius-md)';
+                img.style.display = 'block';
+                img.style.margin = '15px auto';
+                img.style.border = '1px solid var(--border-light)';
+                
+                range.insertNode(img);
+                range.collapse(false);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                
+                editorDirty = true;
+                const saveBadge = document.getElementById('save-indicator-badge');
+                if (saveBadge) {
+                    saveBadge.textContent = 'Unsaved Changes';
+                    saveBadge.classList.add('show');
+                }
+                updateEditorStats();
+                closeDrawModal();
+            });
+        }
+
+        // =====================================================================
+        // VOICE RECORDER CONTROLLER
+        // =====================================================================
+        const btnVoice = document.getElementById('btn-record-voice');
+        const modalVoice = document.getElementById('modal-voice-recorder');
+        const btnVoiceClose = document.getElementById('btn-voice-modal-close');
+        const btnVoiceCancel = document.getElementById('btn-voice-modal-cancel');
+        const btnVoiceStart = document.getElementById('btn-voice-record-start');
+        const btnVoiceStop = document.getElementById('btn-voice-record-stop');
+        const btnVoiceAttach = document.getElementById('btn-voice-modal-attach');
+        const voiceStatus = document.getElementById('voice-recorder-status');
+        const voiceTimer = document.getElementById('voice-record-timer');
+        const voicePulse = document.getElementById('voice-recorder-pulse');
+        const voiceAudioPreview = document.getElementById('voice-preview-audio');
+        const voicePreviewContainer = document.getElementById('voice-preview-container');
+        
+        if (btnVoice && modalVoice) {
+            let mediaRecorder = null;
+            let audioChunks = [];
+            let voiceTimerInterval = null;
+            let voiceStartTime = 0;
+            let currentVoiceBase64 = null;
+            let localStream = null;
+
+            btnVoice.addEventListener('click', () => {
+                modalVoice.classList.add('active');
+                // Reset state
+                voiceStatus.textContent = 'Ready to record';
+                voiceTimer.style.display = 'none';
+                voicePulse.style.display = 'none';
+                btnVoiceStart.style.display = 'inline-block';
+                btnVoiceStop.style.display = 'none';
+                btnVoiceAttach.style.display = 'none';
+                voicePreviewContainer.style.display = 'none';
+                voiceAudioPreview.src = '';
+                currentVoiceBase64 = null;
+                audioChunks = [];
+            });
+
+            const closeVoiceModal = () => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+                clearInterval(voiceTimerInterval);
+                modalVoice.classList.remove('active');
+            };
+
+            btnVoiceCancel.addEventListener('click', closeVoiceModal);
+            btnVoiceClose.addEventListener('click', closeVoiceModal);
+
+            // Start recording
+            btnVoiceStart.addEventListener('click', async () => {
+                try {
+                    voiceStatus.textContent = 'Requesting microphone...';
+                    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    
+                    mediaRecorder = new MediaRecorder(localStream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = (e) => {
+                        if (e.data && e.data.size > 0) {
+                            audioChunks.push(e.data);
+                        }
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        
+                        voiceAudioPreview.src = audioUrl;
+                        voicePreviewContainer.style.display = 'block';
+                        
+                        // Convert blob to Base64
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            currentVoiceBase64 = reader.result;
+                            btnVoiceAttach.style.display = 'inline-block';
+                            voiceStatus.textContent = 'Recording loaded. Ready to attach.';
+                        };
+                        reader.readAsDataURL(audioBlob);
+                    };
+                    
+                    mediaRecorder.start();
+                    voiceStatus.textContent = 'Recording voice...';
+                    voiceTimer.style.display = 'block';
+                    voicePulse.style.display = 'block';
+                    btnVoiceStart.style.display = 'none';
+                    btnVoiceStop.style.display = 'inline-block';
+                    btnVoiceAttach.style.display = 'none';
+                    voicePreviewContainer.style.display = 'none';
+                    
+                    voiceStartTime = Date.now();
+                    voiceTimer.textContent = '00:00';
+                    clearInterval(voiceTimerInterval);
+                    voiceTimerInterval = setInterval(() => {
+                        const elapsed = Math.floor((Date.now() - voiceStartTime) / 1000);
+                        const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+                        const secs = String(elapsed % 60).padStart(2, '0');
+                        voiceTimer.textContent = `${mins}:${secs}`;
+                    }, 1000);
+                    
+                } catch (err) {
+                    console.error('Error starting recording:', err);
+                    voiceStatus.textContent = 'Failed to access microphone. Please allow permissions.';
+                }
+            });
+
+            // Stop recording
+            btnVoiceStop.addEventListener('click', () => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+                clearInterval(voiceTimerInterval);
+                voiceTimer.style.display = 'none';
+                voicePulse.style.display = 'none';
+                btnVoiceStart.style.display = 'inline-block';
+                btnVoiceStop.style.display = 'none';
+                voiceStatus.textContent = 'Processing audio...';
+            });
+
+            // Attach audio
+            btnVoiceAttach.addEventListener('click', () => {
+                if (!currentVoiceBase64) return;
+                
+                editorField.focus();
+                
+                // Get range, fall back to end of editor if empty
+                let range;
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0) {
+                    range = sel.getRangeAt(0);
+                    // Ensure the range is inside the editorField
+                    let node = range.commonAncestorContainer;
+                    let isInside = false;
+                    while (node) {
+                        if (node === editorField) {
+                            isInside = true;
+                            break;
+                        }
+                        node = node.parentNode;
+                    }
+                    if (!isInside) {
+                        range = document.createRange();
+                        range.selectNodeContents(editorField);
+                        range.collapse(false);
+                    }
+                } else {
+                    range = document.createRange();
+                    range.selectNodeContents(editorField);
+                    range.collapse(false);
+                }
+
+                const audioWrapper = document.createElement('div');
+                audioWrapper.className = 'diary-inserted-audio-wrapper';
+                audioWrapper.style.margin = '15px auto';
+                audioWrapper.style.display = 'flex';
+                audioWrapper.style.justifyContent = 'center';
+                audioWrapper.style.width = '100%';
+                audioWrapper.setAttribute('contenteditable', 'false');
+                
+                // Add a unique ID for deletion support
+                const audioWrapperId = 'audio-wrap-' + Date.now();
+                audioWrapper.id = audioWrapperId;
+                
+                audioWrapper.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px; width: 100%; max-width: 420px; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-light); border-radius: 30px; padding: 6px 12px; box-shadow: var(--shadow-sm);">
+                        <audio src="${currentVoiceBase64}" controls style="flex: 1; height: 32px; background: transparent;"></audio>
+                        <button class="btn btn--outline" style="border-radius: 50%; width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #ff5252; border-color: rgba(255,82,82,0.3);" onclick="document.getElementById('${audioWrapperId}').remove()">&times;</button>
+                    </div>
+                `;
+                
+                range.insertNode(audioWrapper);
+                // Insert a trailing line break to allow typing after audio
+                const br = document.createElement('br');
+                audioWrapper.parentNode.insertBefore(br, audioWrapper.nextSibling);
+                
+                range.setStartAfter(br);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                
+                editorDirty = true;
+                const saveBadge = document.getElementById('save-indicator-badge');
+                if (saveBadge) {
+                    saveBadge.textContent = 'Unsaved Changes';
+                    saveBadge.classList.add('show');
+                }
+                updateEditorStats();
+                closeVoiceModal();
+            });
+        }
     }
 
     // -------------------------------------------------------------
@@ -4945,7 +5926,11 @@ const HelloApp = (function() {
         checkLockoutState,
         loadAndRenderDashboard,
         renderAnalytics,
-        openBookCreator
+        openBookCreator,
+        refreshIntruderLogsUI,
+        isDecoy: () => isDecoySession,
+        renderGallery,
+        renderMap
     };
 
 })();

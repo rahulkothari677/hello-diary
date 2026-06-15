@@ -253,6 +253,22 @@
                         </svg>
                         <span>Insights</span>
                     </button>
+                    <button class="nav-item" data-view="gallery">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        <span>Gallery</span>
+                    </button>
+                    <button class="nav-item" data-view="map">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+                            <line x1="8" y1="2" x2="8" y2="18"/>
+                            <line x1="16" y1="6" x2="16" y2="22"/>
+                        </svg>
+                        <span>Map</span>
+                    </button>
                     <button class="nav-item" data-view="settings">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3"/>
@@ -523,6 +539,127 @@
                             <!-- Populated dynamically -->
                         </div>
                     </div>
+
+                    <!-- Fifth row: Emotional Word Cloud Card -->
+                    <div class="glass-card" id="insights-word-cloud-card" style="padding: var(--space-md); margin-top: var(--space-md);">
+                        <h3 class="font-title" style="font-size: 1.15rem; font-weight: 600; margin-bottom: var(--space-xs);">Emotional Word Cloud</h3>
+                        <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: var(--space-md);">Your most frequently used emotional and descriptive words</p>
+                        <div id="word-cloud-container" style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: var(--space-sm); min-height: 150px; padding: var(--space-md); border-radius: var(--radius-md); background: rgba(0,0,0,0.08); overflow: hidden;">
+                            <!-- Word tags populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW PANEL: GALLERY -->
+                <div id="view-gallery" class="view-container" style="display: none;">
+                    <div class="glass-card" style="padding: var(--space-md);">
+                        <h3 class="font-title" style="font-size: 1.15rem; font-weight: 600; margin-bottom: var(--space-xs);">Gallery Grid</h3>
+                        <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: var(--space-md);">A collection of sketches and drawings extracted from your diary entries</p>
+                        <div id="gallery-empty-state" class="timeline-empty" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--space-xl) var(--space-md); text-align: center; color: var(--text-secondary);">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: var(--space-sm); opacity: 0.7;">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                            <h4 style="margin: 0 0 4px 0; font-weight: 600; color: var(--text-primary);">No drawings found</h4>
+                            <p style="margin: 0; font-size: 0.82rem; max-width: 280px;">Draw sketches or insert canvas drawings in your entries to see them populate here.</p>
+                        </div>
+                        <div id="gallery-grid" class="gallery-grid" style="display: none;">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW PANEL: MAP -->
+                <div id="view-map" class="view-container" style="display: none;">
+                    <div class="glass-card" style="padding: var(--space-md); position: relative;">
+                        <h3 class="font-title" style="font-size: 1.15rem; font-weight: 600; margin-bottom: var(--space-xs);">Geolocated Travel Map</h3>
+                        <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: var(--space-md);">Visualize your memories across geographic coordinates and locations</p>
+                        
+                        <div class="map-wrapper" style="position: relative; width: 100%; overflow: hidden; border-radius: var(--radius-md); background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-light); aspect-ratio: 16/9; min-height: 300px;">
+                            <svg id="travel-map-svg" viewBox="0 0 800 450" style="width: 100%; height: 100%; display: block; border-radius: var(--radius-md);">
+                                <defs>
+                                    <pattern id="map-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+                                        <path d="M 30 0 L 0 0 0 30" fill="none" stroke="var(--border-light)" stroke-width="0.75" opacity="0.3"/>
+                                    </pattern>
+                                    <pattern id="dot-pattern" width="8" height="8" patternUnits="userSpaceOnUse">
+                                        <circle cx="4" cy="4" r="1" fill="var(--accent)" opacity="0.25"/>
+                                    </pattern>
+                                    <radialGradient id="ocean-gradient" cx="50%" cy="50%" r="70%">
+                                        <stop offset="0%" stop-color="var(--bg-secondary)"/>
+                                        <stop offset="100%" stop-color="var(--bg-primary)"/>
+                                    </radialGradient>
+                                </defs>
+                                
+                                <rect width="100%" height="100%" fill="url(#ocean-gradient)"/>
+                                <rect width="100%" height="100%" fill="url(#map-grid)"/>
+                                
+                                <line x1="0" y1="225" x2="800" y2="225" stroke="var(--border-light)" stroke-dasharray="4,4" opacity="0.4"/>
+                                <line x1="400" y1="0" x2="400" y2="450" stroke="var(--border-light)" stroke-dasharray="4,4" opacity="0.4"/>
+                                
+                                <!-- Stylized Continent Landmasses -->
+                                <!-- North America -->
+                                <path d="M 60,60 C 80,55 110,50 150,55 C 170,58 190,50 200,60 C 210,70 200,90 220,100 C 230,105 250,90 260,105 C 265,115 250,130 240,140 C 235,145 238,155 230,160 C 220,165 210,150 205,155 C 190,170 195,190 190,205 C 185,215 175,225 170,230 C 168,232 165,220 162,215 C 160,200 155,195 150,185 C 145,175 130,170 120,165 C 110,160 95,165 85,155 C 75,145 70,130 65,115 C 60,100 50,85 55,75 Z" fill="var(--accent-soft)" opacity="0.3" />
+                                <path d="M 60,60 C 80,55 110,50 150,55 C 170,58 190,50 200,60 C 210,70 200,90 220,100 C 230,105 250,90 260,105 C 265,115 250,130 240,140 C 235,145 238,155 230,160 C 220,165 210,150 205,155 C 190,170 195,190 190,205 C 185,215 175,225 170,230 C 168,232 165,220 162,215 C 160,200 155,195 150,185 C 145,175 130,170 120,165 C 110,160 95,165 85,155 C 75,145 70,130 65,115 C 60,100 50,85 55,75 Z" fill="url(#dot-pattern)" stroke="var(--accent)" stroke-width="1.5" stroke-opacity="0.4" stroke-linecap="round" stroke-linejoin="round" />
+
+                                <!-- Greenland -->
+                                <path d="M 245,45 C 260,40 275,45 280,55 C 285,65 270,75 260,80 C 250,85 240,75 238,65 C 235,55 240,48 245,45 Z" fill="var(--accent-soft)" opacity="0.3" />
+                                <path d="M 245,45 C 260,40 275,45 280,55 C 285,65 270,75 260,80 C 250,85 240,75 238,65 C 235,55 240,48 245,45 Z" fill="url(#dot-pattern)" stroke="var(--accent)" stroke-width="1.2" stroke-opacity="0.4" stroke-linecap="round" stroke-linejoin="round" />
+
+                                <!-- South America -->
+                                <path d="M 170,235 C 180,240 195,242 205,250 C 215,260 220,280 225,300 C 230,320 220,350 210,380 C 205,395 198,410 190,415 C 185,418 180,405 180,390 C 180,370 170,330 168,310 C 165,290 160,270 162,255 C 163,245 168,238 170,235 Z" fill="var(--accent-soft)" opacity="0.3" />
+                                <path d="M 170,235 C 180,240 195,242 205,250 C 215,260 220,280 225,300 C 230,320 220,350 210,380 C 205,395 198,410 190,415 C 185,418 180,405 180,390 C 180,370 170,330 168,310 C 165,290 160,270 162,255 C 163,245 168,238 170,235 Z" fill="url(#dot-pattern)" stroke="var(--accent)" stroke-width="1.5" stroke-opacity="0.4" stroke-linecap="round" stroke-linejoin="round" />
+
+                                <!-- Eurasia -->
+                                <path d="M 360,80 C 390,75 420,70 460,72 C 500,75 540,70 580,75 C 620,80 660,72 700,80 C 720,85 740,95 750,110 C 760,125 740,140 730,150 C 715,165 700,160 680,165 C 670,168 660,175 650,180 C 630,190 610,185 590,195 C 570,205 550,220 540,215 C 530,210 535,195 530,190 C 515,175 490,185 480,175 C 470,165 475,150 460,145 C 450,140 435,145 425,140 C 410,130 405,115 390,110 C 375,105 365,95 360,80 Z" fill="var(--accent-soft)" opacity="0.3" />
+                                <path d="M 360,80 C 390,75 420,70 460,72 C 500,75 540,70 580,75 C 620,80 660,72 700,80 C 720,85 740,95 750,110 C 760,125 740,140 730,150 C 715,165 700,160 680,165 C 670,168 660,175 650,180 C 630,190 610,185 590,195 C 570,205 550,220 540,215 C 530,210 535,195 530,190 C 515,175 490,185 480,175 C 470,165 475,150 460,145 C 450,140 435,145 425,140 C 410,130 405,115 390,110 C 375,105 365,95 360,80 Z" fill="url(#dot-pattern)" stroke="var(--accent)" stroke-width="1.5" stroke-opacity="0.4" stroke-linecap="round" stroke-linejoin="round" />
+
+                                <!-- Great Britain & Ireland -->
+                                <path d="M 345,95 C 350,98 352,105 348,110 C 344,115 340,110 342,100 Z" fill="var(--accent-soft)" opacity="0.3" />
+                                <path d="M 345,95 C 350,98 352,105 348,110 C 344,115 340,110 342,100 Z" fill="url(#dot-pattern)" stroke="var(--accent)" stroke-width="1.0" stroke-opacity="0.4" />
+
+                                <!-- Japan -->
+                                <path d="M 715,115 C 720,120 725,130 722,140 C 718,145 715,135 712,125 Z" fill="var(--accent-soft)" opacity="0.3" />
+                                <path d="M 715,115 C 720,120 725,130 722,140 C 718,145 715,135 712,125 Z" fill="url(#dot-pattern)" stroke="var(--accent)" stroke-width="1.0" stroke-opacity="0.4" />
+
+                                <!-- Africa -->
+                                <path d="M 400,165 C 420,160 450,162 470,175 C 490,190 500,210 505,230 C 510,250 495,275 485,300 C 475,325 465,350 455,360 C 450,365 442,355 440,345 C 435,320 425,290 420,270 C 415,250 405,230 400,210 C 395,190 390,175 400,165 Z" fill="var(--accent-soft)" opacity="0.3" />
+                                <path d="M 400,165 C 420,160 450,162 470,175 C 490,190 500,210 505,230 C 510,250 495,275 485,300 C 475,325 465,350 455,360 C 450,365 442,355 440,345 C 435,320 425,290 420,270 C 415,250 405,230 400,210 C 395,190 390,175 400,165 Z" fill="url(#dot-pattern)" stroke="var(--accent)" stroke-width="1.5" stroke-opacity="0.4" stroke-linecap="round" stroke-linejoin="round" />
+
+                                <!-- Madagascar -->
+                                <path d="M 495,310 C 500,315 505,325 502,335 C 500,345 495,340 492,330 C 490,320 492,312 495,310 Z" fill="var(--accent-soft)" opacity="0.3" />
+                                <path d="M 495,310 C 500,315 505,325 502,335 C 500,345 495,340 492,330 C 490,320 492,312 495,310 Z" fill="url(#dot-pattern)" stroke="var(--accent)" stroke-width="1.0" stroke-opacity="0.4" />
+
+                                <!-- Australia -->
+                                <path d="M 630,290 C 650,285 680,290 695,300 C 710,310 715,330 710,345 C 700,360 670,355 650,355 C 630,355 620,340 622,320 C 624,305 626,295 630,290 Z" fill="var(--accent-soft)" opacity="0.3" />
+                                <path d="M 630,290 C 650,285 680,290 695,300 C 710,310 715,330 710,345 C 700,360 670,355 650,355 C 630,355 620,340 622,320 C 624,305 626,295 630,290 Z" fill="url(#dot-pattern)" stroke="var(--accent)" stroke-width="1.5" stroke-opacity="0.4" stroke-linecap="round" stroke-linejoin="round" />
+                                
+                                <g transform="translate(80, 370)">
+                                    <circle cx="0" cy="0" r="30" fill="none" stroke="var(--border-light)" stroke-width="1" opacity="0.4"/>
+                                    <line x1="0" y1="-35" x2="0" y2="35" stroke="var(--border-light)" opacity="0.4"/>
+                                    <line x1="-35" y1="0" x2="35" y2="0" stroke="var(--border-light)" opacity="0.4"/>
+                                    <polygon points="0,-30 4,-5 0,0" fill="var(--accent)"/>
+                                    <polygon points="0,-30 -4,-5 0,0" fill="rgba(255, 255, 255, 0.5)"/>
+                                    <polygon points="0,30 4,5 0,0" fill="rgba(255, 255, 255, 0.5)"/>
+                                    <polygon points="0,30 -4,5 0,0" fill="var(--accent)"/>
+                                    <polygon points="30,0 5,4 0,0" fill="var(--accent)"/>
+                                    <polygon points="30,0 5,-4 0,0" fill="rgba(255, 255, 255, 0.5)"/>
+                                    <polygon points="-30,0 -5,4 0,0" fill="rgba(255, 255, 255, 0.5)"/>
+                                    <polygon points="-30,0 -5,-4 0,0" fill="var(--accent)"/>
+                                    <text x="0" y="-38" font-size="9" fill="var(--text-secondary)" text-anchor="middle" font-family="sans-serif">N</text>
+                                </g>
+                                
+                                <g id="map-pins-container"></g>
+                            </svg>
+                            
+                            <div id="map-tooltip-card" class="glass-card" style="position: absolute; bottom: var(--space-md); right: var(--space-md); max-width: 250px; padding: var(--space-sm); display: none; z-index: 10; pointer-events: auto; animation: fadeInUp 0.3s ease;">
+                                <h4 id="map-tooltip-title" style="margin: 0 0 4px 0; font-size: 0.85rem; font-weight: 600; color: var(--accent);">Location Title</h4>
+                                <p id="map-tooltip-date" style="margin: 0 0 6px 0; font-size: 0.7rem; color: var(--text-secondary);">June 14, 2026</p>
+                                <p id="map-tooltip-snippet" style="margin: 0 0 8px 0; font-size: 0.78rem; line-height: 1.3; color: var(--text-primary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"></p>
+                                <button id="map-tooltip-btn-view" class="btn btn--primary btn--xs" style="width: 100%;">Read Entry</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- VIEW PANEL 4: SETTINGS -->
@@ -612,9 +749,73 @@
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
+                            
+                            <!-- Failed Auth Camera Intruder Capture -->
+                            <div class="flex justify-between align-center" style="margin-bottom: var(--space-md);">
+                                <div>
+                                    <h4 style="font-size: 0.95rem; font-weight: 500;">Intruder Camera Detection</h4>
+                                    <p style="font-size: 0.78rem; color: var(--text-secondary);">Capture photo on failed unlock attempts</p>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" id="toggle-intruder-camera">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <!-- Decoy Mode -->
+                            <div id="decoy-mode-setup-container" style="margin-bottom: var(--space-md); border-top: 1px solid var(--border-light); padding-top: var(--space-md);">
+                                <div class="flex justify-between align-center" style="margin-bottom: var(--space-sm);">
+                                    <div>
+                                        <h4 style="font-size: 0.95rem; font-weight: 500;">Decoy Mode</h4>
+                                        <p style="font-size: 0.78rem; color: var(--text-secondary);">Enter a secondary passcode to show a fake clean diary</p>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="toggle-decoy-mode">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div id="decoy-passcode-setup" style="display: none; padding: var(--space-sm); border: 1px solid var(--border-light); border-radius: var(--radius-sm); background: rgba(0,0,0,0.05); margin-top: var(--space-sm);">
+                                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: var(--space-xs);">Select lock method and enter decoy code:</p>
+                                    <div class="flex gap-sm align-center" style="margin-bottom: var(--space-sm);">
+                                        <button class="btn btn--outline btn--sm" id="btn-decoy-method-pin" style="padding: 4px 8px;">Use PIN</button>
+                                        <button class="btn btn--outline btn--sm" id="btn-decoy-method-pattern" style="padding: 4px 8px;">Use Pattern</button>
+                                    </div>
+                                    
+                                    <!-- Decoy PIN input -->
+                                    <div id="decoy-pin-input-area" style="display: none; margin-bottom: var(--space-sm);">
+                                        <input type="password" id="decoy-pin-field" placeholder="Enter 6-digit Decoy PIN" maxlength="6" class="form-input" style="width: 180px; letter-spacing: 4px; text-align: center; background: var(--bg-secondary); border: 1px solid var(--border);">
+                                    </div>
+
+                                    <!-- Decoy Pattern input -->
+                                    <div id="decoy-pattern-input-area" style="display: none; margin-bottom: var(--space-sm);">
+                                        <p style="font-size: 0.75rem; color: var(--accent); margin-bottom: var(--space-xs);">Draw decoy pattern below:</p>
+                                        <canvas id="decoy-pattern-canvas" width="200" height="200" style="border: 1px solid var(--border); border-radius: 8px; background: #ffffff; display: block; margin: 0 auto;"></canvas>
+                                    </div>
+                                    
+                                    <div class="flex align-center justify-between" style="margin-top: var(--space-sm);">
+                                        <button class="btn btn--primary btn--sm" id="btn-save-decoy" style="padding: 4px 12px;">Save Decoy Passcode</button>
+                                        <span id="decoy-setup-status" style="font-size: 0.75rem; font-weight: 500;"></span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="flex justify-between align-center">
                                 <span style="font-size: 0.95rem; font-weight: 500;">Access Locking Method</span>
                                 <button class="btn btn--outline btn--sm">Change Code</button>
+                            </div>
+                        </div>
+
+                        <!-- Intruder Capture Logs -->
+                        <div class="glass-card" id="settings-intruder-logs-card" style="padding: var(--space-md);">
+                            <div class="flex justify-between align-center" style="margin-bottom: var(--space-md); border-bottom: 1px solid var(--border-light); padding-bottom: 6px;">
+                                <h3 class="font-title" style="font-size: 1.1rem; margin: 0;">Intruder Capture Logs</h3>
+                                <button class="btn btn--outline btn--sm" id="btn-clear-intruders" style="font-size: 0.75rem; padding: 4px 8px;">Clear Logs</button>
+                            </div>
+                            <div id="intruder-logs-empty" style="text-align: center; padding: var(--space-lg); color: var(--text-secondary); font-size: 0.85rem;">
+                                No security incidents logged.
+                            </div>
+                            <div id="intruder-logs-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-sm); max-height: 250px; overflow-y: auto; padding-right: 4px;">
+                                <!-- Captured images loaded dynamically -->
                             </div>
                         </div>
 
@@ -655,6 +856,14 @@
                         </svg>
                         <span>Calendar</span>
                     </button>
+                    <button class="bottom-nav-item" data-view="gallery">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        <span>Gallery</span>
+                    </button>
                     
                     <button class="bottom-nav-item bottom-nav-item--fab" id="btn-mobile-fab" aria-label="New Entry">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -662,6 +871,14 @@
                         </svg>
                     </button>
                     
+                    <button class="bottom-nav-item" data-view="map">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+                            <line x1="8" y1="2" x2="8" y2="18"/>
+                            <line x1="16" y1="6" x2="16" y2="22"/>
+                        </svg>
+                        <span>Map</span>
+                    </button>
                     <button class="bottom-nav-item" data-view="analytics">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 20V10M12 20V4M6 20v-6"/>
@@ -737,6 +954,15 @@
             <button class="add-tag-btn" id="btn-editor-add-tag">+ Add tag</button>
         </div>
 
+        <!-- Location tagging bar -->
+        <div class="location-area" style="display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) var(--space-md); border-bottom: 1px solid var(--border-light); background: rgba(0, 0, 0, 0.02); margin-bottom: var(--space-sm);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent); flex-shrink: 0;">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+            </svg>
+            <input type="text" id="editor-location-input" placeholder="Add location (e.g. San Francisco, London)..." style="border: none; background: transparent; font-size: 0.85rem; color: var(--text-primary); outline: none; width: 100%; font-family: inherit;" />
+        </div>
+
         <!-- Format editor toolbar -->
         <div class="editor-toolbar">
             <!-- Undo/Redo -->
@@ -788,6 +1014,9 @@
             <button class="toolbar-btn" id="btn-highlight-picker" title="Highlight Text">🖍️ Highlight</button>
             <span class="toolbar-divider"></span>
             <button class="toolbar-btn" id="btn-sticker-picker" title="Add Sticker">🧸 Sticker</button>
+            <span class="toolbar-divider"></span>
+            <button class="toolbar-btn" id="btn-draw-canvas" title="Draw Canvas">✏️ Draw</button>
+            <button class="toolbar-btn" id="btn-record-voice" title="Record Voice">🎙️ Record</button>
         </div>
 
         <!-- Main text writing core area -->
@@ -953,6 +1182,71 @@
             <div class="modal-actions">
                 <button class="btn btn--outline btn--sm" id="btn-confirm-cancel">Cancel</button>
                 <button class="btn btn--danger btn--sm" id="btn-confirm-ok">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Drawing Canvas Sketchpad -->
+    <div class="modal-overlay" id="modal-drawing-canvas">
+        <div class="modal glass-card" style="max-width: 500px; width: 90%;">
+            <header class="modal-header">
+                <h3 class="modal-title font-brand">Drawing Sketchpad</h3>
+                <button class="modal-close" id="btn-draw-modal-close">&times;</button>
+            </header>
+            <div style="padding: var(--space-sm) 0; display: flex; flex-direction: column; gap: var(--space-sm); align-items: center;">
+                <div style="display: flex; gap: var(--space-sm); align-items: center; width: 100%; flex-wrap: wrap;">
+                    <div class="flex align-center gap-xs">
+                        <label style="font-size: 0.8rem;">Tool:</label>
+                        <button class="btn btn--outline btn--sm active" id="btn-draw-tool-pen" style="padding: 4px 8px;">✏️ Pen</button>
+                        <button class="btn btn--outline btn--sm" id="btn-draw-tool-eraser" style="padding: 4px 8px;">🧼 Eraser</button>
+                    </div>
+                    <div class="flex align-center gap-xs">
+                        <label style="font-size: 0.8rem;">Size:</label>
+                        <input type="range" id="draw-brush-size" min="1" max="20" value="5" style="width: 80px;">
+                        <span id="draw-brush-size-val" style="font-size: 0.8rem; min-width: 15px;">5px</span>
+                    </div>
+                    <div class="flex align-center gap-xs">
+                        <label style="font-size: 0.8rem;">Color:</label>
+                        <input type="color" id="draw-brush-color" value="#6B7FD7" style="border: none; width: 30px; height: 25px; cursor: pointer; background: transparent;">
+                    </div>
+                    <button class="btn btn--outline btn--sm" id="btn-draw-clear" style="margin-left: auto; padding: 4px 8px;">🧹 Clear</button>
+                </div>
+                
+                <canvas id="editor-drawing-canvas" width="450" height="300" style="border: 1px solid var(--border); border-radius: var(--radius-md); background: #ffffff; cursor: crosshair; touch-action: none; width: 100%; height: auto; max-width: 450px;"></canvas>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn--outline btn--sm" id="btn-draw-modal-cancel">Cancel</button>
+                <button class="btn btn--primary btn--sm" id="btn-draw-modal-insert">Insert Drawing</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Voice Recorder -->
+    <div class="modal-overlay" id="modal-voice-recorder">
+        <div class="modal modal--sm glass-card">
+            <header class="modal-header">
+                <h3 class="modal-title font-brand">Voice Note Recorder</h3>
+                <button class="modal-close" id="btn-voice-modal-close">&times;</button>
+            </header>
+            <div style="padding: var(--space-md) 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-md);">
+                <div id="voice-recorder-status" style="font-size: 0.9rem; font-weight: 500; color: var(--text-secondary);">Ready to record</div>
+                <div id="voice-record-timer" style="font-size: 1.8rem; font-weight: 700; font-family: monospace; display: none;">00:00</div>
+                <div class="voice-pulse-container" id="voice-recorder-pulse" style="display: none; width: 60px; height: 60px; border-radius: 50%; background: var(--accent); opacity: 0.4; animation: pulse 1.5s infinite;"></div>
+                
+                <!-- Controls -->
+                <div class="flex gap-md" style="margin-top: 10px;">
+                    <button class="btn btn--danger" id="btn-voice-record-start" style="padding: 10px 20px; border-radius: 30px;">🎙️ Start Recording</button>
+                    <button class="btn btn--primary" id="btn-voice-record-stop" style="display: none; padding: 10px 20px; border-radius: 30px;">🛑 Stop</button>
+                </div>
+                
+                <!-- Playback Preview -->
+                <div id="voice-preview-container" style="display: none; width: 100%; text-align: center; margin-top: 10px;">
+                    <audio id="voice-preview-audio" controls style="width: 100%; margin-bottom: 10px;"></audio>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn--outline btn--sm" id="btn-voice-modal-cancel">Cancel</button>
+                <button class="btn btn--primary btn--sm" id="btn-voice-modal-attach" style="display: none;">Attach Voice Note</button>
             </div>
         </div>
     </div>
