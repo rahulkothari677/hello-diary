@@ -355,7 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
     populateThemeGallery('theme-picker-settings');
     
     // Setup Switcher Panel
-    setupScreenSwitcher();
+    // setupScreenSwitcher();
     
     // Add basic UI listeners for click events
     

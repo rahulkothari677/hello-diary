@@ -3408,17 +3408,7 @@ const HelloApp = (function() {
             });
         }
 
-        // 4. Focus mode toggle button
-        const focusModeBtn = document.getElementById('btn-focus-mode');
-        if (focusModeBtn) {
-            focusModeBtn.addEventListener('click', () => {
-                const editorScreen = document.getElementById('screen-editor');
-                if (editorScreen) {
-                    editorScreen.classList.toggle('focus-mode');
-                    focusModeBtn.classList.toggle('active');
-                }
-            });
-        }
+
 
         // 5. Dropdowns Toggle Controller (with dynamic positioning to escape horizontal scrollbar clipping)
         const popups = [
