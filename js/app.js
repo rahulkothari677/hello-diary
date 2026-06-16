@@ -2646,8 +2646,10 @@ const HelloApp = (function() {
             const coords = getCoordsForLocation(entry.location);
             
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            g.setAttribute('class', 'map-pin map-pin-animate');
             g.setAttribute('transform', `translate(${coords.x}, ${coords.y})`);
+            
+            const pinContent = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            pinContent.setAttribute('class', 'map-pin map-pin-animate');
             
             const outerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             outerCircle.setAttribute('class', 'outer');
@@ -2664,8 +2666,9 @@ const HelloApp = (function() {
             innerCircle.setAttribute('r', '4');
             innerCircle.setAttribute('fill', '#ffffff');
             
-            g.appendChild(outerCircle);
-            g.appendChild(innerCircle);
+            pinContent.appendChild(outerCircle);
+            pinContent.appendChild(innerCircle);
+            g.appendChild(pinContent);
             
             g.addEventListener('click', (e) => {
                 e.stopPropagation();
