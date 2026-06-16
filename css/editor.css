@@ -589,3 +589,235 @@
     transform: translateY(-1px);
 }
 
+/* --- Editor Options Drawer Style --- */
+.desktop-only-divider {
+    display: none !important;
+}
+
+.mobile-only {
+    display: none !important;
+}
+
+.editor-options-drawer {
+    display: block !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 550;
+    pointer-events: none;
+}
+
+.editor-drawers-container {
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    bottom: 60px;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-top: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateY(calc(100% + 60px));
+    max-height: 50vh;
+    overflow: hidden;
+    pointer-events: auto;
+}
+
+.editor-drawers-container.open {
+    transform: translateY(0);
+}
+
+.drawer-panel {
+    display: none !important;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.drawer-panel.active {
+    display: flex !important;
+}
+
+.drawer-panel-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.drawer-panel-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.drawer-panel-content {
+    display: flex !important;
+    flex-direction: column;
+    overflow-y: auto;
+    padding-bottom: var(--space-md);
+}
+
+/* Wallpaper list: horizontal scrollable row */
+.theme-picker-editor-wrapper {
+    padding: var(--space-md);
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+}
+
+#theme-picker-editor {
+    display: inline-flex !important;
+    gap: var(--space-sm);
+    padding: 4px;
+}
+
+#theme-picker-editor .theme-swatch-grid {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: var(--space-sm) !important;
+    grid-template-columns: none !important;
+    padding: 0 !important;
+}
+
+#theme-picker-editor .theme-swatch-card {
+    flex: 0 0 120px !important;
+    width: 120px !important;
+    margin: 0 !important;
+}
+
+.editor-options-drawer .mood-selector {
+    padding: var(--space-md) var(--space-md) var(--space-sm);
+    border-bottom: none;
+}
+
+.editor-options-drawer .tags-area {
+    padding: var(--space-sm) var(--space-md) var(--space-sm);
+    border-bottom: 1px solid var(--border-light);
+    margin: 0;
+    max-width: none;
+}
+
+.editor-options-drawer .location-area {
+    margin-bottom: 0 !important;
+    border-bottom: none !important;
+    background: transparent !important;
+}
+
+.editor-options-drawer .editor-toolbar {
+    position: relative !important;
+    top: auto !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    padding: var(--space-md) var(--space-md);
+}
+
+/* Hide desktop-specific buttons from toolbar globally */
+.editor-options-drawer .editor-toolbar button[id^="btn-font-picker"],
+.editor-options-drawer .editor-toolbar button[id^="btn-size-picker"],
+.editor-options-drawer .editor-toolbar button[id^="btn-color-picker"],
+.editor-options-drawer .editor-toolbar button[id^="btn-highlight-picker"],
+.editor-options-drawer .editor-toolbar button[id^="btn-sticker-picker"],
+.editor-options-drawer .editor-toolbar button[id^="btn-draw-canvas"],
+.editor-options-drawer .editor-toolbar button[id^="btn-record-voice"],
+.editor-options-drawer .editor-toolbar button[id^="btn-zen-mode"],
+.editor-options-drawer .editor-toolbar select[id^="editor-template-picker"] {
+    display: none !important;
+}
+
+/* Bottom Tab Bar styling */
+.editor-bottom-bar {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: var(--bg-card);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-top: 1px solid var(--glass-border);
+    z-index: 560;
+    box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.05);
+    pointer-events: auto;
+}
+
+.bottom-bar-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    padding: 4px 0;
+    gap: 2px;
+}
+
+.bottom-bar-tab:active,
+.bottom-bar-tab.active {
+    color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.bottom-bar-tab .tab-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Extra padding for writing wrapper so keyboard/drawer/bottom bar don't block content */
+.screen--editor:not(.zen-mode-active) .editor-body-wrapper {
+    padding-bottom: 120px !important;
+}
+
+/* Floating centered design for desktop / wider screens */
+@media (min-width: 768px) {
+    .editor-options-drawer {
+        max-width: 768px;
+        margin: 0 auto;
+        left: 0;
+        right: 0;
+    }
+    
+    .editor-drawers-container {
+        max-width: 768px;
+        margin: 0 auto;
+        left: 0;
+        right: 0;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        border-left: 1px solid var(--glass-border);
+        border-right: 1px solid var(--glass-border);
+    }
+    
+    .editor-bottom-bar {
+        max-width: 768px;
+        margin: 0 auto;
+        left: 0;
+        right: 0;
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+        border-left: 1px solid var(--glass-border);
+        border-right: 1px solid var(--glass-border);
+    }
+}
+
+

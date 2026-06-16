@@ -1744,8 +1744,66 @@
 /* Real-Time Preview Styles matching Presets */
 
 /* Cover Themes */
+/* Glassmorphic card overlay to prevent dynamic text overlapping hardcoded background image text */
+.pdf-cover-card {
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: var(--space-xl) var(--space-md) !important;
+    width: 85% !important;
+    max-width: 480px !important;
+    margin: 0 auto !important;
+    z-index: 10 !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+}
+
+/* Theme overrides for pdf-cover-card */
+.preview-cover-stars .pdf-cover-card,
+.print-cover-stars .pdf-cover-card {
+    background: rgba(10, 12, 30, 0.75) !important;
+    border: 1px solid rgba(246, 226, 127, 0.3) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(246, 226, 127, 0.05) !important;
+}
+
+.preview-cover-sakura .pdf-cover-card,
+.print-cover-sakura .pdf-cover-card {
+    background: rgba(255, 242, 244, 0.8) !important;
+    border: 1px solid rgba(248, 211, 217, 0.6) !important;
+    color: #4A1525 !important;
+    box-shadow: 0 15px 35px rgba(123, 62, 77, 0.15) !important;
+}
+
+.preview-cover-autumn .pdf-cover-card,
+.print-cover-autumn .pdf-cover-card {
+    background: rgba(45, 20, 10, 0.75) !important;
+    border: 1px solid rgba(255, 229, 180, 0.3) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important;
+}
+
+.preview-cover-zen .pdf-cover-card,
+.print-cover-zen .pdf-cover-card {
+    background: rgba(255, 255, 255, 0.85) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    color: #333333 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+}
+
+.preview-cover-typewriter .pdf-cover-card,
+.print-cover-typewriter .pdf-cover-card {
+    background: rgba(244, 240, 230, 0.85) !important;
+    border: 1px solid rgba(139, 126, 102, 0.3) !important;
+    color: #2c251d !important;
+    box-shadow: 0 12px 30px rgba(44, 37, 29, 0.15) !important;
+}
+
 .preview-cover-stars {
-    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_12_35 PM.png") !important;
+    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_12_48 PM.png") !important;
     background-size: cover;
     background-position: center;
     color: #FFFFFF;
@@ -1756,7 +1814,7 @@
     box-shadow: inset 0 0 100px rgba(0,0,0,0.4);
 }
 .preview-cover-stars.back {
-    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_30_03 PM.png") !important;
+    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_30_14 PM.png") !important;
 }
 .preview-cover-stars::before {
     content: '';
@@ -1797,7 +1855,7 @@
 }
 
 .preview-cover-sakura {
-    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_12_48 PM.png") !important;
+    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_12_35 PM.png") !important;
     background-size: cover;
     background-position: center;
     color: #4A1525;
@@ -1807,7 +1865,7 @@
     border: 8px solid #F8D3D9;
 }
 .preview-cover-sakura.back {
-    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_30_14 PM.png") !important;
+    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_30_03 PM.png") !important;
 }
 .preview-cover-sakura::before {
     content: '';
@@ -2439,6 +2497,78 @@
 .card-thumbnail:hover {
     transform: scale(1.05);
     box-shadow: var(--shadow-sm);
+}
+
+/* ==========================================================================
+   Book Builder Responsive Workspace Override
+   ========================================================================== */
+@media (max-width: 1023px) {
+    .creator-mobile-tabs {
+        display: flex !important;
+        background: var(--bg-card);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border-bottom: 1px solid var(--border-light);
+        padding: 8px var(--space-md);
+        gap: var(--space-sm);
+        z-index: 100;
+    }
+    
+    .creator-mobile-tab {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid var(--border-light);
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+        outline: none;
+    }
+    
+    .creator-mobile-tab.active {
+        background: var(--accent-soft);
+        color: var(--accent);
+        border-color: var(--accent);
+        box-shadow: 0 4px 12px var(--accent-glow);
+    }
+    
+    .creator-workspace {
+        display: block !important;
+        position: relative;
+        height: calc(100vh - 130px) !important;
+    }
+    
+    .creator-sidebar,
+    .creator-preview-pane {
+        position: absolute;
+        inset: 0;
+        width: 100% !important;
+        height: 100% !important;
+        display: none !important;
+        border: none !important;
+    }
+    
+    .creator-sidebar.mobile-active {
+        display: flex !important;
+    }
+    
+    .creator-preview-pane.mobile-active {
+        display: flex !important;
+        background: var(--bg-primary) !important;
+    }
+}
+
+@media (min-width: 1024px) {
+    .creator-mobile-tabs {
+        display: none !important;
+    }
 }
 
 

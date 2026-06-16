@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hello-diary-v1';
+const CACHE_NAME = 'hello-diary-v3';
 const PRECACHE_ASSETS = [
   './',
   'index.html',

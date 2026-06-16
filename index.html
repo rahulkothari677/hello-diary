@@ -18,12 +18,12 @@
     </script>
 
     <!-- Stylings -->
-    <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/themes.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="css/editor.css">
-    <link rel="stylesheet" href="css/animations.css">
-    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/base.css?v=3">
+    <link rel="stylesheet" href="css/themes.css?v=3">
+    <link rel="stylesheet" href="css/components.css?v=3">
+    <link rel="stylesheet" href="css/editor.css?v=3">
+    <link rel="stylesheet" href="css/animations.css?v=3">
+    <link rel="stylesheet" href="css/responsive.css?v=3">
 </head>
 <body>
 
@@ -854,102 +854,187 @@
             </div>
         </header>
 
-        <!-- Mood picker bar -->
-        <div class="mood-selector">
-            <span class="mood-label">How are you feeling right now?</span>
-            <div class="mood-picker">
-                <button class="mood-btn" data-mood="1" title="Awful">😢</button>
-                <button class="mood-btn" data-mood="2" title="Bad">😕</button>
-                <button class="mood-btn" data-mood="3" title="Okay">😐</button>
-                <button class="mood-btn" data-mood="4" title="Good">🙂</button>
-                <button class="mood-btn selected" data-mood="5" title="Great">😊</button>
+        <!-- Collapsible Drawer for Mobile Options & Formatting -->
+        <div class="editor-options-drawer" id="editor-options-drawer">
+            <div class="editor-drawers-container" id="editor-drawers-container">
+                <!-- Panel 1: Wallpaper -->
+                <div class="drawer-panel" id="drawer-panel-wallpaper">
+                    <div class="drawer-panel-header">
+                        <span class="drawer-panel-title">🎨 Change Wallpaper</span>
+                    </div>
+                    <div class="drawer-panel-content">
+                        <div class="theme-picker-editor-wrapper">
+                            <div class="theme-picker theme-picker--compact" id="theme-picker-editor"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel 2: Mood -->
+                <div class="drawer-panel" id="drawer-panel-mood">
+                    <div class="drawer-panel-header">
+                        <span class="drawer-panel-title">😊 How's your day?</span>
+                    </div>
+                    <div class="drawer-panel-content">
+                        <div class="mood-selector">
+                            <span class="mood-label">How are you feeling right now?</span>
+                            <div class="mood-picker">
+                                <button class="mood-btn" data-mood="1" title="Awful">😢</button>
+                                <button class="mood-btn" data-mood="2" title="Bad">😕</button>
+                                <button class="mood-btn" data-mood="3" title="Okay">😐</button>
+                                <button class="mood-btn" data-mood="4" title="Good">🙂</button>
+                                <button class="mood-btn selected" data-mood="5" title="Great">😊</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel 3: Tags & Location -->
+                <div class="drawer-panel" id="drawer-panel-tags">
+                    <div class="drawer-panel-header">
+                        <span class="drawer-panel-title">🏷️ Tags & Location</span>
+                    </div>
+                    <div class="drawer-panel-content">
+                        <div class="tags-area">
+                            <div class="entry-tags" id="editor-tags-list">
+                                <span class="tag-pill">#personal <button class="tag-remove">&times;</button></span>
+                                <span class="tag-pill">#thoughts <button class="tag-remove">&times;</button></span>
+                            </div>
+                            <button class="add-tag-btn" id="btn-editor-add-tag">+ Add tag</button>
+                        </div>
+                        <div class="location-area" style="display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) var(--space-md); border-bottom: 1px solid var(--border-light); background: rgba(0, 0, 0, 0.02); margin-bottom: var(--space-sm);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent); flex-shrink: 0;">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                                <circle cx="12" cy="10" r="3"/>
+                            </svg>
+                            <input type="text" id="editor-location-input" placeholder="Add location (e.g. San Francisco, London)..." style="border: none; background: transparent; font-size: 0.85rem; color: var(--text-primary); outline: none; width: 100%; font-family: inherit;" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel 4: Typography -->
+                <div class="drawer-panel" id="drawer-panel-typo">
+                    <div class="drawer-panel-header">
+                        <span class="drawer-panel-title">🔠 Typography & Fonts</span>
+                    </div>
+                    <div class="drawer-panel-content">
+                        <div class="typo-controls" style="display: flex; gap: var(--space-sm); padding: var(--space-md); justify-content: center; flex-wrap: wrap;">
+                            <button class="btn btn--outline" id="btn-font-picker-mobile">Font</button>
+                            <button class="btn btn--outline" id="btn-size-picker-mobile">Size</button>
+                            <button class="btn btn--outline" id="btn-color-picker-mobile">Color</button>
+                            <button class="btn btn--outline" id="btn-highlight-picker-mobile">Highlight</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel 5: Formatting -->
+                <div class="drawer-panel" id="drawer-panel-format">
+                    <div class="drawer-panel-header">
+                        <span class="drawer-panel-title">✍️ Formatting Tools</span>
+                    </div>
+                    <div class="drawer-panel-content">
+                        <div class="editor-toolbar">
+                            <!-- Undo/Redo -->
+                            <button class="toolbar-btn" data-cmd="undo" title="Undo">↩</button>
+                            <button class="toolbar-btn" data-cmd="redo" title="Redo">↪</button>
+                            <span class="toolbar-divider"></span>
+
+                            <!-- Bold, Italic, Underline, Strikethrough -->
+                            <button class="toolbar-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+                            <button class="toolbar-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+                            <button class="toolbar-btn" data-cmd="underline" title="Underline" style="text-decoration: underline;">U</button>
+                            <button class="toolbar-btn" data-cmd="strikeThrough" title="Strikethrough" style="text-decoration: line-through;">S</button>
+                            <span class="toolbar-divider"></span>
+
+                            <!-- Subscript / Superscript -->
+                            <button class="toolbar-btn" data-cmd="subscript" title="Subscript">x₂</button>
+                            <button class="toolbar-btn" data-cmd="superscript" title="Superscript">x²</button>
+                            <span class="toolbar-divider"></span>
+
+                            <!-- Paragraph styles & Alignments -->
+                            <button class="toolbar-btn" data-cmd="justifyLeft" title="Align Left">▤</button>
+                            <button class="toolbar-btn" data-cmd="justifyCenter" title="Align Center">▥</button>
+                            <button class="toolbar-btn" data-cmd="justifyRight" title="Align Right">▨</button>
+                            <button class="toolbar-btn" data-cmd="justifyFull" title="Justify">▩</button>
+                            <span class="toolbar-divider"></span>
+
+                            <button class="toolbar-btn" data-cmd="h1">H1</button>
+                            <button class="toolbar-btn" data-cmd="h2">H2</button>
+                            <button class="toolbar-btn" data-cmd="quote" title="Quote">“ ”</button>
+                            <span class="toolbar-divider"></span>
+
+                            <!-- Lists & Indent -->
+                            <button class="toolbar-btn" data-cmd="insertUnorderedList" title="Bullet List">• List</button>
+                            <button class="toolbar-btn" data-cmd="insertOrderedList" title="Numbered List">1. List</button>
+                            <button class="toolbar-btn" data-cmd="outdent" title="Decrease Indent">⇠</button>
+                            <button class="toolbar-btn" data-cmd="indent" title="Increase Indent">⇢</button>
+                            <span class="toolbar-divider"></span>
+
+                            <button class="toolbar-btn" data-cmd="horizontalRule" title="Horizontal Line">—</button>
+                            <button class="toolbar-btn" data-cmd="removeFormat" title="Clear Formatting">⌧</button>
+                            <button class="toolbar-btn" id="btn-insert-link" title="Insert Link">🔗 Link</button>
+                            <button class="toolbar-btn" data-cmd="formatBlock" data-val="pre" title="Code Block">&lt;/&gt;</button>
+                            
+                            <!-- Typography / Colors (hidden on mobile, visible on desktop) -->
+                            <span class="toolbar-divider desktop-only-divider"></span>
+                            <button class="toolbar-btn" id="btn-font-picker">Font</button>
+                            <button class="toolbar-btn" id="btn-size-picker">A±</button>
+                            <button class="toolbar-btn" id="btn-color-picker" title="Text Color">🎨 Color</button>
+                            <button class="toolbar-btn" id="btn-highlight-picker" title="Highlight Text">🖍️ Highlight</button>
+                            <span class="toolbar-divider desktop-only-divider"></span>
+                            <button class="toolbar-btn" id="btn-sticker-picker" title="Add Sticker">🧸 Sticker</button>
+                            <span class="toolbar-divider desktop-only-divider"></span>
+                            <button class="toolbar-btn" id="btn-draw-canvas" title="Draw Canvas">✏️ Draw</button>
+                            <button class="toolbar-btn" id="btn-record-voice" title="Record Voice">🎙️ Record</button>
+                            <span class="toolbar-divider desktop-only-divider"></span>
+                            <button class="toolbar-btn" id="btn-zen-mode" title="Zen Mode (Distraction Free)">👁️ Zen Mode</button>
+                            <span class="toolbar-divider desktop-only-divider"></span>
+                            <select id="editor-template-picker" class="toolbar-select" title="Choose Template">
+                                <option value="" disabled selected>Templates...</option>
+                                <option value="daily">☀️ Daily Reflection</option>
+                                <option value="gratitude">🌸 Gratitude Journal</option>
+                                <option value="evening">🌙 Evening Review</option>
+                                <option value="five-minute">⏱️ 5-Minute Journal</option>
+                                <option value="dream">💭 Dream Log</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel 6: Extras -->
+                <div class="drawer-panel" id="drawer-panel-extras">
+                    <div class="drawer-panel-header">
+                        <span class="drawer-panel-title">⚙️ Extra Writing Tools</span>
+                    </div>
+                    <div class="drawer-panel-content">
+                        <div class="extras-grid" style="display: flex; gap: var(--space-sm); padding: var(--space-md); flex-wrap: wrap; justify-content: center;">
+                            <button class="btn btn--outline" id="btn-sticker-picker-mobile" title="Add Sticker">🧸 Sticker</button>
+                            <button class="btn btn--outline" id="btn-draw-canvas-mobile" title="Draw Canvas">✏️ Draw</button>
+                            <button class="btn btn--outline" id="btn-record-voice-mobile" title="Record Voice">🎙️ Record</button>
+                            <button class="btn btn--outline" id="btn-zen-mode-mobile" title="Zen Mode">👁️ Zen Mode</button>
+                            <select id="editor-template-picker-mobile" class="toolbar-select" title="Choose Template">
+                                <option value="" disabled selected>Templates...</option>
+                                <option value="daily">☀️ Daily Reflection</option>
+                                <option value="gratitude">🌸 Gratitude Journal</option>
+                                <option value="evening">🌙 Evening Review</option>
+                                <option value="five-minute">⏱️ 5-Minute Journal</option>
+                                <option value="dream">💭 Dream Log</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fixed Bottom Tab Bar -->
+            <div class="editor-bottom-bar" id="editor-bottom-bar">
+                <button class="bottom-bar-tab" data-target="wallpaper" type="button">🎨<span class="tab-label">Wallpaper</span></button>
+                <button class="bottom-bar-tab" data-target="mood" type="button">😊<span class="tab-label">Mood</span></button>
+                <button class="bottom-bar-tab" data-target="tags" type="button">🏷️<span class="tab-label">Tags</span></button>
+                <button class="bottom-bar-tab" data-target="typo" type="button">🔠<span class="tab-label">Font</span></button>
+                <button class="bottom-bar-tab" data-target="format" type="button">✍️<span class="tab-label">Format</span></button>
+                <button class="bottom-bar-tab" data-target="extras" type="button">⚙️<span class="tab-label">Extras</span></button>
             </div>
         </div>
 
-        <!-- Tags management bar -->
-        <div class="tags-area">
-            <div class="entry-tags" id="editor-tags-list">
-                <span class="tag-pill">#personal <button class="tag-remove">&times;</button></span>
-                <span class="tag-pill">#thoughts <button class="tag-remove">&times;</button></span>
-            </div>
-            <button class="add-tag-btn" id="btn-editor-add-tag">+ Add tag</button>
-        </div>
-
-        <!-- Location tagging bar -->
-        <div class="location-area" style="display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) var(--space-md); border-bottom: 1px solid var(--border-light); background: rgba(0, 0, 0, 0.02); margin-bottom: var(--space-sm);">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent); flex-shrink: 0;">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                <circle cx="12" cy="10" r="3"/>
-            </svg>
-            <input type="text" id="editor-location-input" placeholder="Add location (e.g. San Francisco, London)..." style="border: none; background: transparent; font-size: 0.85rem; color: var(--text-primary); outline: none; width: 100%; font-family: inherit;" />
-        </div>
-
-        <!-- Format editor toolbar -->
-        <div class="editor-toolbar">
-            <!-- Undo/Redo -->
-            <button class="toolbar-btn" data-cmd="undo" title="Undo">↩</button>
-            <button class="toolbar-btn" data-cmd="redo" title="Redo">↪</button>
-            <span class="toolbar-divider"></span>
-
-            <!-- Bold, Italic, Underline, Strikethrough -->
-            <button class="toolbar-btn" data-cmd="bold" title="Bold"><b>B</b></button>
-            <button class="toolbar-btn" data-cmd="italic" title="Italic"><i>I</i></button>
-            <button class="toolbar-btn" data-cmd="underline" title="Underline" style="text-decoration: underline;">U</button>
-            <button class="toolbar-btn" data-cmd="strikeThrough" title="Strikethrough" style="text-decoration: line-through;">S</button>
-            <span class="toolbar-divider"></span>
-
-            <!-- Subscript / Superscript -->
-            <button class="toolbar-btn" data-cmd="subscript" title="Subscript">x₂</button>
-            <button class="toolbar-btn" data-cmd="superscript" title="Superscript">x²</button>
-            <span class="toolbar-divider"></span>
-
-            <!-- Paragraph styles & Alignments -->
-            <button class="toolbar-btn" data-cmd="justifyLeft" title="Align Left">▤</button>
-            <button class="toolbar-btn" data-cmd="justifyCenter" title="Align Center">▥</button>
-            <button class="toolbar-btn" data-cmd="justifyRight" title="Align Right">▨</button>
-            <button class="toolbar-btn" data-cmd="justifyFull" title="Justify">▩</button>
-            <span class="toolbar-divider"></span>
-
-            <button class="toolbar-btn" data-cmd="h1">H1</button>
-            <button class="toolbar-btn" data-cmd="h2">H2</button>
-            <button class="toolbar-btn" data-cmd="quote" title="Quote">“ ”</button>
-            <span class="toolbar-divider"></span>
-
-            <!-- Lists & Indent -->
-            <button class="toolbar-btn" data-cmd="insertUnorderedList" title="Bullet List">• List</button>
-            <button class="toolbar-btn" data-cmd="insertOrderedList" title="Numbered List">1. List</button>
-            <button class="toolbar-btn" data-cmd="outdent" title="Decrease Indent">⇠</button>
-            <button class="toolbar-btn" data-cmd="indent" title="Increase Indent">⇢</button>
-            <span class="toolbar-divider"></span>
-
-            <button class="toolbar-btn" data-cmd="horizontalRule" title="Horizontal Line">—</button>
-            <button class="toolbar-btn" data-cmd="removeFormat" title="Clear Formatting">⌧</button>
-            <button class="toolbar-btn" id="btn-insert-link" title="Insert Link">🔗 Link</button>
-            <button class="toolbar-btn" data-cmd="formatBlock" data-val="pre" title="Code Block">&lt;/&gt;</button>
-            
-            <!-- Font settings dropdown trigger (Step 5 core logic) -->
-            <span class="toolbar-divider"></span>
-            <button class="toolbar-btn" id="btn-font-picker">Font</button>
-            <button class="toolbar-btn" id="btn-size-picker">A±</button>
-            <button class="toolbar-btn" id="btn-color-picker" title="Text Color">🎨 Color</button>
-            <button class="toolbar-btn" id="btn-highlight-picker" title="Highlight Text">🖍️ Highlight</button>
-            <span class="toolbar-divider"></span>
-            <button class="toolbar-btn" id="btn-sticker-picker" title="Add Sticker">🧸 Sticker</button>
-            <span class="toolbar-divider"></span>
-            <button class="toolbar-btn" id="btn-draw-canvas" title="Draw Canvas">✏️ Draw</button>
-            <button class="toolbar-btn" id="btn-record-voice" title="Record Voice">🎙️ Record</button>
-            <span class="toolbar-divider"></span>
-            <button class="toolbar-btn" id="btn-zen-mode" title="Zen Mode (Distraction Free)">👁️ Zen Mode</button>
-            <span class="toolbar-divider"></span>
-            <select id="editor-template-picker" class="toolbar-select" title="Choose Template">
-                <option value="" disabled selected>Templates...</option>
-                <option value="daily">☀️ Daily Reflection</option>
-                <option value="gratitude">🌸 Gratitude Journal</option>
-                <option value="evening">🌙 Evening Review</option>
-                <option value="five-minute">⏱️ 5-Minute Journal</option>
-                <option value="dream">💭 Dream Log</option>
-            </select>
-        </div>
 
         <!-- Main text writing core area -->
         <div class="editor-body-wrapper">
@@ -1268,6 +1353,12 @@
                 <button class="btn btn--outline" id="btn-creator-close">Close Builder</button>
             </div>
         </header>
+        
+        <!-- Mobile Toggle Tabs for Book Builder -->
+        <div class="creator-mobile-tabs" id="creator-mobile-tabs">
+            <button class="creator-mobile-tab active" data-tab="settings" type="button">⚙️ Book Details</button>
+            <button class="creator-mobile-tab" data-tab="preview" type="button">👁️ Live Preview</button>
+        </div>
 
         <div class="creator-workspace">
             <!-- Controls Sidebar -->
@@ -1396,10 +1487,10 @@
     <!-- ==========================================
          TEMPORARY DEV TOOL SWITCHER (Step 1 Preview)
          ========================================== -->
-    <script src="js/crypto.js"></script>
-    <script src="js/db.js"></script>
-    <script src="js/app.js"></script>
-    <script src="js/dev-toggle.js"></script>
+    <script src="js/crypto.js?v=3"></script>
+    <script src="js/db.js?v=3"></script>
+    <script src="js/app.js?v=3"></script>
+    <script src="js/dev-toggle.js?v=3"></script>
 
 </body>
 </html>

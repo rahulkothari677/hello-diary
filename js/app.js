@@ -238,6 +238,7 @@ const HelloApp = (function() {
     let activeEntryId = null; 
     let activeEntryDate = null;
     let editorDirty = false;
+    let skipSaveOnPopState = false;
     let autoSaveIntervalId = null;
     
     // Auto-Lock state
@@ -353,6 +354,45 @@ const HelloApp = (function() {
                 showScreen('screen-lock');
             }
 
+            // Bind back button popstate listener to handle Android swipes & browser back
+            window.addEventListener('popstate', async (event) => {
+                if (!sessionKey) {
+                    const dbCredentials = await HelloDB.hasCredentials();
+                    if (dbCredentials) {
+                        showScreen('screen-lock', false);
+                    } else {
+                        showScreen('screen-setup', false);
+                    }
+                    return;
+                }
+                
+                if (skipSaveOnPopState) {
+                    skipSaveOnPopState = false; // Reset flag
+                } else {
+                    // Check if we are going back from the editor screen
+                    const activeScreen = document.querySelector('.screen.active');
+                    if (activeScreen && activeScreen.id === 'screen-editor') {
+                        if (editorDirty) {
+                            await saveActiveEntry();
+                        }
+                    }
+                }
+                
+                if (event.state && event.state.screen) {
+                    const nextScreen = event.state.screen;
+                    showScreen(nextScreen, false);
+                    if (nextScreen === 'screen-dashboard' && window.switchDashboardView) {
+                        window.switchDashboardView('timeline');
+                    }
+                } else {
+                    // Default back to dashboard
+                    showScreen('screen-dashboard', false);
+                    if (window.switchDashboardView) {
+                        window.switchDashboardView('timeline');
+                    }
+                }
+            });
+
         } catch (err) {
             console.error('App initialization error:', err);
             showToast('Failed to initialize application database.');
@@ -378,7 +418,7 @@ const HelloApp = (function() {
     /**
      * Changes the visible active layout screen.
      */
-    function showScreen(screenId) {
+    function showScreen(screenId, shouldPushHistory = true) {
         document.querySelectorAll('.screen').forEach(scr => {
             scr.classList.remove('active');
         });
@@ -395,6 +435,17 @@ const HelloApp = (function() {
 
         if (screenId === 'screen-dashboard' && sessionKey) {
             loadAndRenderDashboard();
+        }
+
+        // Manage history stack
+        if (shouldPushHistory) {
+            if (screenId === 'screen-dashboard') {
+                window.history.replaceState({ screen: 'screen-dashboard' }, '');
+            } else if (screenId === 'screen-editor' || screenId === 'screen-book-creator') {
+                window.history.pushState({ screen: screenId }, '');
+            } else if (screenId === 'screen-lock') {
+                window.history.replaceState({ screen: 'screen-lock' }, '');
+            }
         }
     }
 
@@ -3093,12 +3144,16 @@ const HelloApp = (function() {
         const editorBack = document.getElementById('btn-editor-back');
         if (editorBack) {
             editorBack.addEventListener('click', async () => {
-                if (sessionKey) {
-                    await saveActiveEntry();
-                }
-                showScreen('screen-dashboard');
-                if (window.switchDashboardView) {
-                    window.switchDashboardView('timeline');
+                if (window.history.state && window.history.state.screen && window.history.state.screen !== 'screen-dashboard') {
+                    window.history.back();
+                } else {
+                    if (sessionKey) {
+                        await saveActiveEntry();
+                    }
+                    showScreen('screen-dashboard');
+                    if (window.switchDashboardView) {
+                        window.switchDashboardView('timeline');
+                    }
                 }
             });
         }
@@ -3131,9 +3186,15 @@ const HelloApp = (function() {
                     showToast('Entry deleted successfully.');
                     await loadAndRenderDashboard();
                 }
-                showScreen('screen-dashboard');
-                if (window.switchDashboardView) {
-                    window.switchDashboardView('timeline');
+                
+                skipSaveOnPopState = true;
+                if (window.history.state && window.history.state.screen && window.history.state.screen !== 'screen-dashboard') {
+                    window.history.back();
+                } else {
+                    showScreen('screen-dashboard');
+                    if (window.switchDashboardView) {
+                        window.switchDashboardView('timeline');
+                    }
                 }
             });
         }
@@ -3412,58 +3473,65 @@ const HelloApp = (function() {
 
         // 5. Dropdowns Toggle Controller (with dynamic positioning to escape horizontal scrollbar clipping)
         const popups = [
-            { btn: 'btn-font-picker', menu: 'dropdown-font' },
-            { btn: 'btn-size-picker', menu: 'dropdown-size' },
-            { btn: 'btn-color-picker', menu: 'dropdown-color' },
-            { btn: 'btn-highlight-picker', menu: 'dropdown-highlight' }
+            { btnIds: ['btn-font-picker', 'btn-font-picker-mobile'], menu: 'dropdown-font' },
+            { btnIds: ['btn-size-picker', 'btn-size-picker-mobile'], menu: 'dropdown-size' },
+            { btnIds: ['btn-color-picker', 'btn-color-picker-mobile'], menu: 'dropdown-color' },
+            { btnIds: ['btn-highlight-picker', 'btn-highlight-picker-mobile'], menu: 'dropdown-highlight' }
         ];
 
-        popups.forEach(({ btn, menu }) => {
-            const btnEl = document.getElementById(btn);
+        popups.forEach(({ btnIds, menu }) => {
             const menuEl = document.getElementById(menu);
-            if (btnEl && menuEl) {
-                btnEl.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    
-                    // Close others
-                    popups.forEach(p => {
-                        if (p.menu !== menu) {
-                            const otherMenu = document.getElementById(p.menu);
-                            if (otherMenu) otherMenu.classList.remove('active');
+            if (!menuEl) return;
+            
+            btnIds.forEach(btnId => {
+                const btnEl = document.getElementById(btnId);
+                if (btnEl) {
+                    btnEl.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        
+                        // Close others
+                        popups.forEach(p => {
+                            if (p.menu !== menu) {
+                                const otherMenu = document.getElementById(p.menu);
+                                if (otherMenu) otherMenu.classList.remove('active');
+                            }
+                        });
+                        
+                        const willShow = !menuEl.classList.contains('active');
+                        if (willShow) {
+                            // Position dynamically relative to trigger button
+                            const rect = btnEl.getBoundingClientRect();
+                            
+                            // We position it above the toolbar button (which is at rect.top)
+                            menuEl.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+                            
+                            // Keep dropdown on screen (menu width is 200px to 230px)
+                            let left = rect.left;
+                            const menuWidth = menuEl.classList.contains('grid-layout') ? 230 : 200;
+                            if (left + menuWidth > window.innerWidth) {
+                                left = window.innerWidth - menuWidth - 16;
+                            }
+                            menuEl.style.left = Math.max(16, left) + 'px';
+                            
+                            menuEl.classList.add('active');
+                        } else {
+                            menuEl.classList.remove('active');
                         }
                     });
-                    
-                    const willShow = !menuEl.classList.contains('active');
-                    if (willShow) {
-                        // Position dynamically relative to trigger button
-                        const rect = btnEl.getBoundingClientRect();
-                        
-                        // We position it above the toolbar button (which is at rect.top)
-                        menuEl.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
-                        
-                        // Keep dropdown on screen (menu width is 200px to 230px)
-                        let left = rect.left;
-                        const menuWidth = menuEl.classList.contains('grid-layout') ? 230 : 200;
-                        if (left + menuWidth > window.innerWidth) {
-                            left = window.innerWidth - menuWidth - 16;
-                        }
-                        menuEl.style.left = Math.max(16, left) + 'px';
-                        
-                        menuEl.classList.add('active');
-                    } else {
-                        menuEl.classList.remove('active');
-                    }
-                });
-            }
+                }
+            });
         });
 
         // Global dismiss for drop-downs
         document.addEventListener('click', (e) => {
-            popups.forEach(({ btn, menu }) => {
-                const btnEl = document.getElementById(btn);
+            popups.forEach(({ btnIds, menu }) => {
                 const menuEl = document.getElementById(menu);
-                if (btnEl && menuEl) {
-                    if (!btnEl.contains(e.target) && !menuEl.contains(e.target)) {
+                if (menuEl) {
+                    const clickedAnyBtn = btnIds.some(btnId => {
+                        const btnEl = document.getElementById(btnId);
+                        return btnEl && btnEl.contains(e.target);
+                    });
+                    if (!clickedAnyBtn && !menuEl.contains(e.target)) {
                         menuEl.classList.remove('active');
                     }
                 }
@@ -3960,6 +4028,83 @@ const HelloApp = (function() {
                 }
                 updateEditorStats();
                 closeVoiceModal();
+            });
+        }
+
+        // Multi-Drawer Collapsible Tabs & Bottom Bar Controller
+        const drawersContainer = document.getElementById('editor-drawers-container');
+        const bottomBarTabs = document.querySelectorAll('.bottom-bar-tab');
+        const drawerPanels = document.querySelectorAll('.drawer-panel');
+        
+        if (drawersContainer && bottomBarTabs.length > 0) {
+            bottomBarTabs.forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const target = tab.getAttribute('data-target');
+                    const targetPanel = document.getElementById(`drawer-panel-${target}`);
+                    
+                    if (!targetPanel) return;
+                    
+                    const isOpen = drawersContainer.classList.contains('open');
+                    const isTabActive = tab.classList.contains('active');
+                    
+                    // Reset all tabs & panels
+                    bottomBarTabs.forEach(t => t.classList.remove('active'));
+                    drawerPanels.forEach(p => p.classList.remove('active'));
+                    
+                    if (isOpen && isTabActive) {
+                        // Collapse drawer
+                        drawersContainer.classList.remove('open');
+                    } else {
+                        // Open drawer with target panel
+                        tab.classList.add('active');
+                        targetPanel.classList.add('active');
+                        drawersContainer.classList.add('open');
+                    }
+                });
+            });
+        }
+        
+        // Auto-collapse options drawers on editor field focus or click
+        if (editorField && drawersContainer) {
+            const collapseDrawers = () => {
+                drawersContainer.classList.remove('open');
+                bottomBarTabs.forEach(t => t.classList.remove('active'));
+            };
+            editorField.addEventListener('focus', collapseDrawers);
+            editorField.addEventListener('click', collapseDrawers);
+        }
+        
+        // Populate theme picker inside editor once on load
+        if (window.populateThemeGallery) {
+            window.populateThemeGallery('theme-picker-editor');
+        }
+        
+        // Bind Mobile Typography dropdown delegates and Extra delegates
+        const mobileTypoButtons = [
+            { id: 'btn-draw-canvas-mobile', delegateId: 'btn-draw-canvas' },
+            { id: 'btn-record-voice-mobile', delegateId: 'btn-record-voice' },
+            { id: 'btn-zen-mode-mobile', delegateId: 'btn-zen-mode' }
+        ];
+        
+        mobileTypoButtons.forEach(({ id, delegateId }) => {
+            const btn = document.getElementById(id);
+            const delegate = document.getElementById(delegateId);
+            if (btn && delegate) {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    delegate.click();
+                });
+            }
+        });
+        
+        // Bind Mobile Template Picker delegate
+        const mobileTemplatePicker = document.getElementById('editor-template-picker-mobile');
+        const desktopTemplatePicker = document.getElementById('editor-template-picker');
+        if (mobileTemplatePicker && desktopTemplatePicker) {
+            mobileTemplatePicker.addEventListener('change', (e) => {
+                desktopTemplatePicker.value = e.target.value;
+                desktopTemplatePicker.dispatchEvent(new Event('change'));
             });
         }
     }
@@ -4972,27 +5117,35 @@ const HelloApp = (function() {
 
         // 4. Editor Sticker Picker
         const btnSticker = document.getElementById('btn-sticker-picker');
+        const btnStickerMobile = document.getElementById('btn-sticker-picker-mobile');
         const dropdownSticker = document.getElementById('dropdown-sticker');
         
-        if (btnSticker && dropdownSticker) {
-            btnSticker.addEventListener('click', (e) => {
+        if (dropdownSticker) {
+            const handleStickerToggle = (e, triggerBtn) => {
                 e.stopPropagation();
                 document.querySelectorAll('.editor-dropdown').forEach(d => {
                     if (d !== dropdownSticker) d.classList.remove('active');
                 });
-                const isHidden = dropdownSticker.style.display === 'none';
+                const isHidden = dropdownSticker.style.display === 'none' || dropdownSticker.style.display === '';
                 dropdownSticker.style.display = isHidden ? 'block' : 'none';
                 
                 if (isHidden) {
-                    const rect = btnSticker.getBoundingClientRect();
-                    dropdownSticker.style.bottom = (window.innerHeight - rect.top + window.scrollY + 6) + 'px';
-                    let left = rect.left + window.scrollX;
+                    const rect = triggerBtn.getBoundingClientRect();
+                    dropdownSticker.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+                    let left = rect.left;
                     if (left + 280 > window.innerWidth) {
                         left = window.innerWidth - 280 - 16;
                     }
-                    dropdownSticker.style.left = left + 'px';
+                    dropdownSticker.style.left = Math.max(16, left) + 'px';
                 }
-            });
+            };
+            
+            if (btnSticker) {
+                btnSticker.addEventListener('click', (e) => handleStickerToggle(e, btnSticker));
+            }
+            if (btnStickerMobile) {
+                btnStickerMobile.addEventListener('click', (e) => handleStickerToggle(e, btnStickerMobile));
+            }
             
             document.addEventListener('click', () => {
                 if (dropdownSticker) dropdownSticker.style.display = 'none';
@@ -5254,15 +5407,17 @@ const HelloApp = (function() {
             else if (selectedCoverTheme === 'vintage-typewriter') previewPage.classList.add('preview-cover-typewriter');
             
             previewPage.innerHTML = `
-                <div class="pdf-cover-logo">${logoSvg}</div>
-                <h1>${title}</h1>
-                <p class="cover-subtitle">${subtitle}</p>
-                <div style="width: 60px; height: 2px; background: currentColor; margin: 25px auto; opacity: 0.6;"></div>
-                <p class="cover-meta">
-                    ${volume}<br>
-                    ${selectedEntryIds.length} Memor${selectedEntryIds.length === 1 ? 'y' : 'ies'}<br>
-                    Created with Hello Diary
-                </p>
+                <div class="pdf-cover-card">
+                    <div class="pdf-cover-logo">${logoSvg}</div>
+                    <h1>${title}</h1>
+                    <p class="cover-subtitle">${subtitle}</p>
+                    <div style="width: 60px; height: 2px; background: currentColor; margin: 25px auto; opacity: 0.6;"></div>
+                    <p class="cover-meta">
+                        ${volume}<br>
+                        ${selectedEntryIds.length} Memor${selectedEntryIds.length === 1 ? 'y' : 'ies'}<br>
+                        Created with Hello Diary
+                    </p>
+                </div>
             `;
         } else if (activePreviewTab === 'back') {
             previewPage.classList.add('back');
@@ -5273,15 +5428,17 @@ const HelloApp = (function() {
             else if (selectedCoverTheme === 'vintage-typewriter') previewPage.classList.add('preview-cover-typewriter');
             
             previewPage.innerHTML = `
-                <div class="pdf-cover-logo">${logoSvg}</div>
-                <h2 style="font-family: inherit; font-size: 1.8rem; font-weight: normal; margin-bottom: 10px;">${title}</h2>
-                <div style="width: 40px; height: 1px; background: currentColor; margin: 15px auto; opacity: 0.4;"></div>
-                <p class="cover-meta" style="line-height: 1.8;">
-                    This volume compiles ${selectedEntryIds.length} memories recorded between<br>
-                    <strong>${firstDateStr || 'N/A'}</strong> and <strong>${lastDateStr || 'N/A'}</strong>.
-                    <br><br>
-                    <em>Hello Diary Sanctuary Edition</em>
-                </p>
+                <div class="pdf-cover-card">
+                    <div class="pdf-cover-logo">${logoSvg}</div>
+                    <h2 style="font-family: inherit; font-size: 1.8rem; font-weight: normal; margin-bottom: 10px;">${title}</h2>
+                    <div style="width: 40px; height: 1px; background: currentColor; margin: 15px auto; opacity: 0.4;"></div>
+                    <p class="cover-meta" style="line-height: 1.8;">
+                        This volume compiles ${selectedEntryIds.length} memories recorded between<br>
+                        <strong>${firstDateStr || 'N/A'}</strong> and <strong>${lastDateStr || 'N/A'}</strong>.
+                        <br><br>
+                        <em>Hello Diary Sanctuary Edition</em>
+                    </p>
+                </div>
             `;
         } else if (activePreviewTab === 'inside') {
             if (selectedPageTheme === 'clean-white') previewPage.classList.add('preview-page-clean');
@@ -5368,30 +5525,34 @@ const HelloApp = (function() {
         // Front Cover HTML
         const frontCoverHtml = `
             <div class="${coverClass} front">
-                <div class="pdf-cover-logo">${logoSvg}</div>
-                <h1>${title}</h1>
-                <p class="cover-subtitle">${subtitle}</p>
-                <div class="pdf-cover-divider"></div>
-                <p class="cover-meta">
-                    ${volume} · ${selectedEntries.length} Memor${selectedEntries.length === 1 ? 'y' : 'ies'}<br>
-                    Exported on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </p>
+                <div class="pdf-cover-card">
+                    <div class="pdf-cover-logo">${logoSvg}</div>
+                    <h1>${title}</h1>
+                    <p class="cover-subtitle">${subtitle}</p>
+                    <div class="pdf-cover-divider"></div>
+                    <p class="cover-meta">
+                        ${volume} · ${selectedEntries.length} Memor${selectedEntries.length === 1 ? 'y' : 'ies'}<br>
+                        Exported on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
+                </div>
             </div>
         `;
         
         // Back Cover HTML
         const backCoverHtml = `
             <div class="${coverClass} back">
-                <div class="pdf-cover-logo">${logoSvg}</div>
-                <h1 style="font-size: 2.5rem;">${title}</h1>
-                <p class="cover-subtitle">${subtitle}</p>
-                <div class="pdf-cover-divider"></div>
-                <p class="cover-meta" style="line-height: 1.8;">
-                    This volume compiles ${selectedEntries.length} memories recorded between<br>
-                    <strong>${firstDateStr || 'N/A'}</strong> and <strong>${lastDateStr || 'N/A'}</strong>.
-                    <br><br>
-                    <em>Hello Diary Sanctuary Edition</em>
-                </p>
+                <div class="pdf-cover-card">
+                    <div class="pdf-cover-logo">${logoSvg}</div>
+                    <h1 style="font-size: 2.5rem;">${title}</h1>
+                    <p class="cover-subtitle">${subtitle}</p>
+                    <div class="pdf-cover-divider"></div>
+                    <p class="cover-meta" style="line-height: 1.8;">
+                        This volume compiles ${selectedEntries.length} memories recorded between<br>
+                        <strong>${firstDateStr || 'N/A'}</strong> and <strong>${lastDateStr || 'N/A'}</strong>.
+                        <br><br>
+                        <em>Hello Diary Sanctuary Edition</em>
+                    </p>
+                </div>
             </div>
         `;
         
@@ -5527,6 +5688,59 @@ const HelloApp = (function() {
         .size-medium { font-size: 1.15rem !important; }
         .size-large { font-size: 1.4rem !important; }
 
+        /* Glassmorphic card overlay to prevent dynamic text overlapping hardcoded background image text */
+        .pdf-cover-card {
+            background: rgba(255, 255, 255, 0.75) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15) !important;
+            border-radius: var(--radius-lg) !important;
+            padding: var(--space-xl) var(--space-md) !important;
+            width: 85% !important;
+            max-width: 480px !important;
+            margin: 0 auto !important;
+            z-index: 10 !important;
+            position: relative !important;
+            box-sizing: border-box !important;
+        }
+
+        /* Theme overrides for pdf-cover-card */
+        .print-cover-stars .pdf-cover-card {
+            background: rgba(10, 12, 30, 0.75) !important;
+            border: 1px solid rgba(246, 226, 127, 0.3) !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(246, 226, 127, 0.05) !important;
+        }
+
+        .print-cover-sakura .pdf-cover-card {
+            background: rgba(255, 242, 244, 0.8) !important;
+            border: 1px solid rgba(248, 211, 217, 0.6) !important;
+            color: #4A1525 !important;
+            box-shadow: 0 15px 35px rgba(123, 62, 77, 0.15) !important;
+        }
+
+        .print-cover-autumn .pdf-cover-card {
+            background: rgba(45, 20, 10, 0.75) !important;
+            border: 1px solid rgba(255, 229, 180, 0.3) !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .print-cover-zen .pdf-cover-card {
+            background: rgba(255, 255, 255, 0.85) !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            color: #333333 !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+        }
+
+        .print-cover-typewriter .pdf-cover-card {
+            background: rgba(244, 240, 230, 0.85) !important;
+            border: 1px solid rgba(139, 126, 102, 0.3) !important;
+            color: #2c251d !important;
+            box-shadow: 0 12px 30px rgba(44, 37, 29, 0.15) !important;
+        }
+
         /* Cover Presets with separate Front and Back images */
         .print-cover-stars {
             background: linear-gradient(135deg, #0d0e2c 0%, #060714 100%) !important;
@@ -5536,10 +5750,10 @@ const HelloApp = (function() {
             border: 24px double #F6E27F;
         }
         .print-cover-stars.front {
-            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_12_35 PM.png') !important;
+            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_12_48 PM.png') !important;
         }
         .print-cover-stars.back {
-            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_30_03 PM.png') !important;
+            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_30_14 PM.png') !important;
         }
         .print-cover-stars::before {
             content: ''; position: absolute; inset: 0; background: rgba(13, 14, 44, 0.45); z-index: 1;
@@ -5557,10 +5771,10 @@ const HelloApp = (function() {
             border: 16px solid #F8D3D9;
         }
         .print-cover-sakura.front {
-            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_12_48 PM.png') !important;
+            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_12_35 PM.png') !important;
         }
         .print-cover-sakura.back {
-            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_30_14 PM.png') !important;
+            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_30_03 PM.png') !important;
         }
         .print-cover-sakura::before {
             content: ''; position: absolute; inset: 0; background: rgba(255, 242, 244, 0.25); z-index: 1;
@@ -5792,13 +6006,42 @@ const HelloApp = (function() {
     }
 
     function initBookCreator() {
+        // Mobile layout tab switching
+        const mobileTabs = document.querySelectorAll('.creator-mobile-tab');
+        const sidebar = document.querySelector('.creator-sidebar');
+        const previewPane = document.querySelector('.creator-preview-pane');
+        
+        // Ensure sidebar is active by default on mobile
+        if (sidebar) sidebar.classList.add('mobile-active');
+        if (previewPane) previewPane.classList.remove('mobile-active');
+        
+        mobileTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                mobileTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                const targetTab = tab.getAttribute('data-tab');
+                if (targetTab === 'settings') {
+                    if (sidebar) sidebar.classList.add('mobile-active');
+                    if (previewPane) previewPane.classList.remove('mobile-active');
+                } else {
+                    if (sidebar) sidebar.classList.remove('mobile-active');
+                    if (previewPane) previewPane.classList.add('mobile-active');
+                }
+            });
+        });
+
         // Back/Close Button
         const closeBtn = document.getElementById('btn-creator-close');
         if (closeBtn) {
             closeBtn.addEventListener('click', () => {
-                showScreen('screen-dashboard');
-                if (window.switchDashboardView) {
-                    window.switchDashboardView('timeline');
+                if (window.history.state && window.history.state.screen && window.history.state.screen !== 'screen-dashboard') {
+                    window.history.back();
+                } else {
+                    showScreen('screen-dashboard');
+                    if (window.switchDashboardView) {
+                        window.switchDashboardView('timeline');
+                    }
                 }
             });
         }

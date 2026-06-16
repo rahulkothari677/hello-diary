@@ -96,3 +96,11 @@
         display: none !important;
     }
 }
+
+/* Hide hamburger menu button on mobile/tablet screens */
+@media (max-width: 1023px) {
+    .topbar-menu-btn {
+        display: none !important;
+    }
+}
+
