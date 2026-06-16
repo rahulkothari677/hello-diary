@@ -1271,8 +1271,206 @@ async function main() {
             await evaluate('document.getElementById("btn-view-modal-close").click()');
             await sleep(300);
 
+            console.log('\n=== TEST FLOW K: BLUEPRINT BUNDLE EXTENSIONS ===');
+
+            // 1. Bookmarking / Favoriting & Thumbnails
+            console.log('Switching to Timeline view...');
+            await evaluate('switchDashboardView("timeline")');
+            await sleep(500);
+
+            console.log('Creating a new entry with an inline drawing for bookmark/thumbnail testing...');
+            await evaluate('document.getElementById("btn-fab-new-entry").click()');
+            await sleep(500);
+
+            await evaluate(`
+                document.getElementById('rich-editor-field').innerHTML = '<h1>Favorited Sketch</h1><p>This is a sketch with a drawing.</p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==">';
+                document.getElementById('rich-editor-field').dispatchEvent(new Event('input'));
+            `);
+            await sleep(300);
+
+            console.log('Clicking favorite star button in editor header...');
+            await evaluate('document.getElementById("btn-editor-favorite").click()');
+            await sleep(300);
+
+            let isEditorFavActive = await evaluate('document.getElementById("btn-editor-favorite").classList.contains("active")');
+            console.log('✓ Editor header favorite star is active:', isEditorFavActive);
+            if (!isEditorFavActive) throw new Error('Editor header favorite star failed to activate.');
+
+            console.log('Saving entry...');
+            await evaluate('document.getElementById("btn-editor-back").click()');
+            await sleep(1500);
+
+            // Verify the card has favorited star on timeline
+            let cardFavActive = await evaluate(`{
+                const cards = document.querySelectorAll("#view-timeline .entries-grid > div");
+                const targetCard = Array.from(cards).find(c => c.querySelector('h3').textContent === 'Favorited Sketch');
+                targetCard && targetCard.querySelector('.timeline-card-favorite-btn').classList.contains('active');
+            }`);
+            console.log('✓ Timeline card favorite star is active:', cardFavActive);
+            if (!cardFavActive) throw new Error('Timeline card favorite star is not active.');
+
+            // Verify the card has thumbnail preview
+            let hasThumbnail = await evaluate(`{
+                const cards = document.querySelectorAll("#view-timeline .entries-grid > div");
+                const targetCard = Array.from(cards).find(c => c.querySelector('h3').textContent === 'Favorited Sketch');
+                targetCard && !!targetCard.querySelector('.card-thumbnail-container img.card-thumbnail');
+            }`);
+            console.log('✓ Card has thumbnail image preview:', hasThumbnail);
+            if (!hasThumbnail) throw new Error('Card thumbnail image preview not found.');
+
+            // Create another normal entry (non-favorited)
+            console.log('Creating a normal entry (non-favorited) to test filtering...');
+            await evaluate('document.getElementById("btn-fab-new-entry").click()');
+            await sleep(500);
+
+            await evaluate(`
+                document.getElementById('rich-editor-field').innerHTML = '<h1>Normal Entry</h1><p>Just a regular entry.</p>';
+                document.getElementById('rich-editor-field').dispatchEvent(new Event('input'));
+            `);
+            await sleep(300);
+
+            console.log('Saving normal entry...');
+            await evaluate('document.getElementById("btn-editor-back").click()');
+            await sleep(1500);
+
+            // Test favorites filter
+            console.log('Activating Favorites filter on Timeline topbar...');
+            await evaluate('document.getElementById("btn-filter-favorites").click()');
+            await sleep(500);
+
+            let visibleCardTitles = await evaluate(`
+                Array.from(document.querySelectorAll("#view-timeline .entries-grid h3")).map(h => h.textContent)
+            `);
+            console.log('✓ Visible card titles with favorites filter active:', visibleCardTitles);
+            if (visibleCardTitles.includes('Normal Entry') || !visibleCardTitles.includes('Favorited Sketch')) {
+                throw new Error('Favorites filter did not work correctly.');
+            }
+
+            console.log('Deactivating Favorites filter...');
+            await evaluate('document.getElementById("btn-filter-favorites").click()');
+            await sleep(500);
+
+            visibleCardTitles = await evaluate(`
+                Array.from(document.querySelectorAll("#view-timeline .entries-grid h3")).map(h => h.textContent)
+            `);
+            console.log('✓ Visible card titles with favorites filter inactive:', visibleCardTitles);
+            if (!visibleCardTitles.includes('Normal Entry') || !visibleCardTitles.includes('Favorited Sketch')) {
+                throw new Error('Favorites filter deactivation failed to restore all entries.');
+            }
+
+            // 2. Templates
+            console.log('Opening Editor to test Writing Templates...');
+            await evaluate('document.getElementById("btn-fab-new-entry").click()');
+            await sleep(500);
+
+            // Mock window.confirm to return true automatically
+            console.log('Mocking window.confirm to auto-approve...');
+            await evaluate('window.confirm = () => true;');
+
+            console.log('Selecting Daily Reflection template...');
+            await evaluate(`{
+                const picker = document.getElementById('editor-template-picker');
+                picker.value = 'daily';
+                picker.dispatchEvent(new Event('change'));
+            }`);
+            await sleep(500);
+
+            let editorText = await evaluate('document.getElementById("rich-editor-field").innerHTML');
+            console.log('✓ Editor content contains Daily Reflection:', editorText.includes('Daily Reflection'));
+            if (!editorText.includes('Daily Reflection')) {
+                throw new Error('Template selection failed to populate editor.');
+            }
+
+            console.log('Selecting Gratitude Journal template (should overwrite Daily)...');
+            await evaluate(`{
+                const picker = document.getElementById('editor-template-picker');
+                picker.value = 'gratitude';
+                picker.dispatchEvent(new Event('change'));
+            }`);
+            await sleep(500);
+
+            editorText = await evaluate('document.getElementById("rich-editor-field").innerHTML');
+            console.log('✓ Editor content contains Gratitude Journal:', editorText.includes('Gratitude Journal'));
+            if (!editorText.includes('Gratitude Journal') || editorText.includes('Daily Reflection')) {
+                throw new Error('Template selection failed to overwrite editor content properly.');
+            }
+
+            // 3. Zen Mode
+            console.log('Toggling Zen Mode...');
+            await evaluate('document.getElementById("btn-zen-mode").click()');
+            await sleep(500);
+
+            let isZenActive = await evaluate('document.getElementById("screen-editor").classList.contains("zen-mode-active")');
+            console.log('✓ Zen Mode class active on editor screen:', isZenActive);
+            if (!isZenActive) throw new Error('Zen Mode failed to activate.');
+
+            console.log('Exiting Zen Mode via escape button...');
+            await evaluate('document.getElementById("btn-zen-exit").click()');
+            await sleep(500);
+
+            isZenActive = await evaluate('document.getElementById("screen-editor").classList.contains("zen-mode-active")');
+            console.log('✓ Zen Mode class inactive after clicking exit:', !isZenActive);
+            if (isZenActive) throw new Error('Zen Mode failed to deactivate via exit button.');
+
+            console.log('Toggling Zen Mode again to test Escape key...');
+            await evaluate('document.getElementById("btn-zen-mode").click()');
+            await sleep(500);
+
+            console.log('Dispatching Escape key event...');
+            await evaluate(`
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+            `);
+            await sleep(500);
+
+            isZenActive = await evaluate('document.getElementById("screen-editor").classList.contains("zen-mode-active")');
+            console.log('✓ Zen Mode class inactive after Escape key:', !isZenActive);
+            if (isZenActive) throw new Error('Zen Mode failed to deactivate via Escape key.');
+
+            console.log('Exiting editor...');
+            await evaluate('document.getElementById("btn-editor-back").click()');
+            await sleep(1000);
+
+            // 4. Settings Inactivity Auto-Lock
+            console.log('Navigating to Settings...');
+            await evaluate('switchDashboardView("settings")');
+            await sleep(500);
+
+            console.log('Setting up timeout override hook...');
+            await evaluate(`{
+                window.__capturedAutoLockCallback = null;
+                const origSetTimeout = window.setTimeout;
+                window.setTimeout = function(cb, delay) {
+                    if (delay === 60000) {
+                        window.__capturedAutoLockCallback = cb;
+                    }
+                    return origSetTimeout.apply(this, arguments);
+                };
+            }`);
+
+            console.log('Selecting Auto-Lock Timeout: 1 Minute...');
+            await evaluate(`{
+                const picker = document.getElementById('select-auto-lock');
+                picker.value = '1';
+                picker.dispatchEvent(new Event('change'));
+            }`);
+            await sleep(500);
+
+            let hasTimerCallback = await evaluate('typeof window.__capturedAutoLockCallback === "function"');
+            console.log('✓ Captured inactivity timer callback:', hasTimerCallback);
+            if (!hasTimerCallback) throw new Error('Failed to capture inactivity timer callback.');
+
+            console.log('Simulating inactivity timeout execution...');
+            await evaluate('window.__capturedAutoLockCallback()');
+            await sleep(1000);
+
+            let activeScreen = await evaluate('document.querySelector(".screen.active").id');
+            console.log('✓ Current screen after inactivity lock:', activeScreen);
+            if (activeScreen !== 'screen-lock') {
+                throw new Error('Auto-lock failed to lock the screen after inactivity.');
+            }
+
             console.log('\n=============================================================');
-            console.log('🎉 ALL STEP 10 GALLERY & LOCATION E2E TESTS PASSED! 🎉');
+            console.log('🎉 ALL STEP 11 BLUEPRINT BUNDLE EXTENSIONS PASSED! 🎉');
             console.log('=============================================================');
 
             ws.close();

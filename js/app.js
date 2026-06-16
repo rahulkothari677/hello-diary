@@ -232,12 +232,17 @@ const HelloApp = (function() {
     let currentCalendarDate = new Date();
     let searchMoodFilter = 'all';
     let searchTagsFilter = new Set();
+    let isFavoritesFilterActive = false;
     
     // Editor state
     let activeEntryId = null; 
     let activeEntryDate = null;
     let editorDirty = false;
     let autoSaveIntervalId = null;
+    
+    // Auto-Lock state
+    let autoLockTimeoutId = null;
+    let autoLockDuration = 0; // in minutes (0 = disabled)
 
     /**
      * Returns the current volatile session key.
@@ -315,6 +320,15 @@ const HelloApp = (function() {
                     decoySetupDiv.style.display = decoyActive ? 'block' : 'none';
                 }
             }
+
+            // Load auto-lock timer settings state
+            const autoLockConfig = await HelloDB.getSetting('auto_lock_duration') || 0;
+            autoLockDuration = parseInt(autoLockConfig);
+            const autoLockSelect = document.getElementById('select-auto-lock');
+            if (autoLockSelect) {
+                autoLockSelect.value = autoLockDuration.toString();
+            }
+            initActivityTracking();
 
             // 5. Check lockout status
             await checkLockoutState();
@@ -506,6 +520,7 @@ const HelloApp = (function() {
                     isDecoySession = result.isDecoy;
                     biometricBackupKey = sessionKey;
                     biometricBackupIsDecoy = isDecoySession;
+                    resetAutoLockTimer();
 
                     showToast('Setup complete! Welcome to Hello Diary ✨');
                     showScreen('screen-dashboard');
@@ -629,6 +644,75 @@ const HelloApp = (function() {
         document.getElementById('setup-error-msg').textContent = '';
     }
 
+    /**
+     * Locks the application and purges the volatile session key.
+     */
+    function lockApp(showMsg = true) {
+        sessionKey = null;
+        isDecoySession = false;
+        
+        lockEnteredPin = '';
+        const lockPinDots = document.querySelectorAll('#lock-pin-section .pin-dot');
+        if (lockPinDots) {
+            lockPinDots.forEach(d => d.classList.remove('filled'));
+        }
+        if (lockPatternCanvas) lockPatternCanvas.clear();
+        
+        const pinErrMsg = document.getElementById('pin-error-msg');
+        if (pinErrMsg) pinErrMsg.textContent = '';
+        const patErrMsg = document.getElementById('pattern-error-msg');
+        if (patErrMsg) patErrMsg.textContent = '';
+        const bioErrMsg = document.getElementById('bio-error-msg');
+        if (bioErrMsg) bioErrMsg.textContent = '';
+
+        if (autoLockTimeoutId) {
+            clearTimeout(autoLockTimeoutId);
+            autoLockTimeoutId = null;
+        }
+
+        isFavoritesFilterActive = false;
+        const filterFavsBtn = document.getElementById('btn-filter-favorites');
+        if (filterFavsBtn) filterFavsBtn.classList.remove('active');
+
+        if (showMsg) {
+            showToast('Diary locked securely. 🌙');
+        }
+        showScreen('screen-lock');
+    }
+
+    /**
+     * Resets the auto-lock inactivity timer.
+     */
+    function resetAutoLockTimer() {
+        if (!sessionKey) return;
+        
+        if (autoLockTimeoutId) {
+            clearTimeout(autoLockTimeoutId);
+            autoLockTimeoutId = null;
+        }
+        
+        if (autoLockDuration > 0) {
+            autoLockTimeoutId = setTimeout(() => {
+                if (sessionKey) {
+                    lockApp(true);
+                    showToast('Logged out due to inactivity.');
+                }
+            }, autoLockDuration * 60 * 1000);
+        }
+    }
+
+    /**
+     * Registers window listeners to reset the inactivity timer on user interaction.
+     */
+    function initActivityTracking() {
+        const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+        events.forEach(name => {
+            window.addEventListener(name, () => {
+                resetAutoLockTimer();
+            }, { passive: true });
+        });
+    }
+
     // --------------------------------------------------------------------------
     // 4. LOCK SCREEN SECURITY FLOW CONTROLLER
     // --------------------------------------------------------------------------
@@ -671,6 +755,7 @@ const HelloApp = (function() {
                         biometricBackupIsDecoy = isDecoySession;
                         lockEnteredPin = '';
                         lockPinDots.forEach(d => d.classList.remove('filled'));
+                        resetAutoLockTimer();
 
                         showToast('Welcome back to your Sanctuary! 🌙');
                         showScreen('screen-dashboard');
@@ -723,6 +808,7 @@ const HelloApp = (function() {
                 biometricBackupKey = sessionKey;
                 biometricBackupIsDecoy = isDecoySession;
                 lockPatternCanvas.clear();
+                resetAutoLockTimer();
 
                 showToast('Welcome back to your Sanctuary! 🌙');
                 showScreen('screen-dashboard');
@@ -773,6 +859,7 @@ const HelloApp = (function() {
                     if (biometricBackupKey) {
                         sessionKey = biometricBackupKey;
                         isDecoySession = biometricBackupIsDecoy;
+                        resetAutoLockTimer();
                         showToast('Welcome back via Biometrics! 🌙');
                         showScreen('screen-dashboard');
                         if (window.switchDashboardView) {
@@ -795,21 +882,7 @@ const HelloApp = (function() {
         const sidebarLock = document.getElementById('btn-sidebar-lock');
         if (sidebarLock) {
             sidebarLock.addEventListener('click', () => {
-                // Purge key from memory
-                sessionKey = null;
-                isDecoySession = false;
-                
-                // Clear UI states
-                lockEnteredPin = '';
-                lockPinDots.forEach(d => d.classList.remove('filled'));
-                if (lockPatternCanvas) lockPatternCanvas.clear();
-                
-                document.getElementById('pin-error-msg').textContent = '';
-                document.getElementById('pattern-error-msg').textContent = '';
-                document.getElementById('bio-error-msg').textContent = '';
-
-                showToast('Diary locked securely. 🌙');
-                showScreen('screen-lock');
+                lockApp(true);
             });
         }
 
@@ -954,6 +1027,23 @@ const HelloApp = (function() {
                     await HelloDB.clearIntruderCaptures();
                     showToast('Intruder logs cleared.');
                     refreshIntruderLogsUI();
+                }
+            });
+        }
+
+        // Auto-lock dropdown change listener
+        const autoLockSelect = document.getElementById('select-auto-lock');
+        if (autoLockSelect) {
+            autoLockSelect.addEventListener('change', async (e) => {
+                const val = parseInt(e.target.value) || 0;
+                autoLockDuration = val;
+                try {
+                    await HelloDB.setSetting('auto_lock_duration', val);
+                    showToast(`Auto-lock timeout updated to ${val > 0 ? val + ' minute(s)' : 'Never'}.`);
+                    resetAutoLockTimer();
+                } catch (err) {
+                    console.error('Failed to save auto-lock setting:', err);
+                    showToast('Failed to save auto-lock setting.');
                 }
             });
         }
@@ -1207,14 +1297,29 @@ const HelloApp = (function() {
         
         grid.innerHTML = '';
         
-        if (cachedEntries.length === 0) {
-            grid.innerHTML = `
-                <div class="glass-card" style="grid-column: 1 / -1; padding: var(--space-xl); text-align: center; width: 100%;">
-                    <span style="font-size: 3rem;">✍️</span>
-                    <h3 class="font-title" style="margin-top: var(--space-md); font-weight: 600;">No memories written yet</h3>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">Click the floating + button to write your first entry.</p>
-                </div>
-            `;
+        let entriesToRender = cachedEntries;
+        if (isFavoritesFilterActive) {
+            entriesToRender = cachedEntries.filter(entry => entry.favorite);
+        }
+        
+        if (entriesToRender.length === 0) {
+            if (isFavoritesFilterActive) {
+                grid.innerHTML = `
+                    <div class="glass-card" style="grid-column: 1 / -1; padding: var(--space-xl); text-align: center; width: 100%;">
+                        <span style="font-size: 3rem;">⭐</span>
+                        <h3 class="font-title" style="margin-top: var(--space-md); font-weight: 600;">No starred memories</h3>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">Bookmark entries in the editor or on the card to see them here.</p>
+                    </div>
+                `;
+            } else {
+                grid.innerHTML = `
+                    <div class="glass-card" style="grid-column: 1 / -1; padding: var(--space-xl); text-align: center; width: 100%;">
+                        <span style="font-size: 3rem;">✍️</span>
+                        <h3 class="font-title" style="margin-top: var(--space-md); font-weight: 600;">No memories written yet</h3>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">Click the floating + button to write your first entry.</p>
+                    </div>
+                `;
+            }
             return;
         }
         
@@ -1226,7 +1331,7 @@ const HelloApp = (function() {
             5: { emoji: '😊', name: 'Great' }
         };
         
-        cachedEntries.forEach(entry => {
+        entriesToRender.forEach(entry => {
             const formattedDate = new Date(entry.date).toLocaleDateString('en-US', {
                 month: 'long',
                 day: 'numeric',
@@ -1256,13 +1361,38 @@ const HelloApp = (function() {
             if (snippet.length > 150) {
                 snippet = snippet.substring(0, 150) + '...';
             }
+
+            // Extract images for thumbnails
+            const images = [];
+            const imgRegex = /src=["'](data:image\/[^"']+)["']/g;
+            let match;
+            let imgCount = 0;
+            while ((match = imgRegex.exec(entry.content)) !== null && imgCount < 3) {
+                images.push(match[1]);
+                imgCount++;
+            }
+            
+            let thumbnailsHtml = '';
+            if (images.length > 0) {
+                thumbnailsHtml = `<div class="card-thumbnail-container">` +
+                    images.map(src => `<img class="card-thumbnail" src="${src}" alt="Preview" />`).join('') +
+                    `</div>`;
+            }
             
             card.innerHTML = `
                 <div class="flex justify-between align-center">
                     <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">${formattedDate}</span>
-                    <span style="font-size: 1.3rem;" title="${MOODS_MAP[entry.mood]?.name || 'Okay'}">${MOODS_MAP[entry.mood]?.emoji || '😐'}</span>
+                    <div class="flex align-center" style="gap: var(--space-xs);">
+                        <button class="timeline-card-favorite-btn ${entry.favorite ? 'active' : ''}" title="${entry.favorite ? 'Unfavorite' : 'Favorite'}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                            </svg>
+                        </button>
+                        <span style="font-size: 1.3rem;" title="${MOODS_MAP[entry.mood]?.name || 'Okay'}">${MOODS_MAP[entry.mood]?.emoji || '😐'}</span>
+                    </div>
                 </div>
                 <h3 class="font-title" style="font-size: 1.15rem; font-weight: 600;">${escapeHtml(entry.title || 'Untitled')}</h3>
+                ${thumbnailsHtml}
                 <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
                     ${escapeHtml(snippet)}
                 </p>
@@ -1270,6 +1400,23 @@ const HelloApp = (function() {
                     ${tagsHtml}
                 </div>
             `;
+            
+            const favCardBtn = card.querySelector('.timeline-card-favorite-btn');
+            if (favCardBtn) {
+                favCardBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const isFav = !entry.favorite;
+                    entry.favorite = isFav;
+                    
+                    try {
+                        await HelloDB.updateEntry(entry, sessionKey);
+                        await loadAndRenderDashboard();
+                    } catch (err) {
+                        console.error('Failed to toggle favorite status:', err);
+                        showToast('Error updating favorite status.');
+                    }
+                });
+            }
             
             card.addEventListener('click', () => {
                 // If the card is currently swiped open, reset it on click instead of viewing details
@@ -1621,6 +1768,7 @@ const HelloApp = (function() {
     async function openNewEditor() {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById('screen-editor').classList.add('active');
+        document.getElementById('screen-editor').classList.remove('zen-mode-active');
         
         // Pre-generate ID for auto-save draft capability
         activeEntryId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
@@ -1649,6 +1797,9 @@ const HelloApp = (function() {
         const saveBadge = document.getElementById('save-indicator-badge');
         if (saveBadge) saveBadge.classList.remove('show');
         
+        const favBtn = document.getElementById('btn-editor-favorite');
+        if (favBtn) favBtn.classList.remove('active');
+        
         await applyPreferredTypography();
         updateEditorStats();
         
@@ -1659,6 +1810,7 @@ const HelloApp = (function() {
     async function openEntryForEditing(entry) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById('screen-editor').classList.add('active');
+        document.getElementById('screen-editor').classList.remove('zen-mode-active');
         
         activeEntryId = entry.id;
         activeEntryDate = entry.date;
@@ -1689,6 +1841,15 @@ const HelloApp = (function() {
         const saveBadge = document.getElementById('save-indicator-badge');
         if (saveBadge) saveBadge.classList.remove('show');
         
+        const favBtn = document.getElementById('btn-editor-favorite');
+        if (favBtn) {
+            if (entry.favorite) {
+                favBtn.classList.add('active');
+            } else {
+                favBtn.classList.remove('active');
+            }
+        }
+        
         await applyPreferredTypography();
         updateEditorStats();
         
@@ -1712,12 +1873,16 @@ const HelloApp = (function() {
         const locInput = document.getElementById('editor-location-input');
         const locationVal = locInput ? locInput.value.trim() : '';
         
+        const favBtn = document.getElementById('btn-editor-favorite');
+        const isFav = favBtn ? favBtn.classList.contains('active') : false;
+        
         const entryObj = {
             title: title,
             content: content,
             tags: tags,
             mood: moodVal,
             location: locationVal,
+            favorite: isFav,
             date: activeEntryDate || Date.now()
         };
         
@@ -1821,6 +1986,9 @@ const HelloApp = (function() {
         
         const locInput = document.getElementById('editor-location-input');
         const locationVal = locInput ? locInput.value.trim() : '';
+        
+        const favBtn = document.getElementById('btn-editor-favorite');
+        const isFav = favBtn ? favBtn.classList.contains('active') : false;
 
         const entryObj = {
             title: title,
@@ -1828,6 +1996,7 @@ const HelloApp = (function() {
             tags: tags,
             mood: moodVal,
             location: locationVal,
+            favorite: isFav,
             date: activeEntryDate || Date.now()
         };
         
@@ -2767,6 +2936,20 @@ const HelloApp = (function() {
      * Binds all dashboard, search, and editor event handlers for Step 4.
      */
     function initDashboardControllers() {
+        const filterFavsBtn = document.getElementById('btn-filter-favorites');
+        if (filterFavsBtn) {
+            filterFavsBtn.addEventListener('click', () => {
+                isFavoritesFilterActive = !isFavoritesFilterActive;
+                filterFavsBtn.classList.toggle('active', isFavoritesFilterActive);
+                if (isFavoritesFilterActive) {
+                    showToast('Showing starred memories only');
+                } else {
+                    showToast('Showing all memories');
+                }
+                renderTimeline();
+            });
+        }
+
         const searchToggle = document.getElementById('btn-search-toggle');
         const searchClose = document.getElementById('btn-search-close');
         const searchPanel = document.getElementById('search-panel');
@@ -3057,6 +3240,20 @@ const HelloApp = (function() {
         const editorField = document.getElementById('rich-editor-field');
         if (!editorField) return;
 
+        const editorFavoriteBtn = document.getElementById('btn-editor-favorite');
+        if (editorFavoriteBtn) {
+            editorFavoriteBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                editorFavoriteBtn.classList.toggle('active');
+                editorDirty = true;
+                const saveBadge = document.getElementById('save-indicator-badge');
+                if (saveBadge) {
+                    saveBadge.textContent = 'Unsaved Changes';
+                    saveBadge.classList.add('show');
+                }
+            });
+        }
+
         // Prevent toolbar/dropdown clicks from stealing focus/selection from the editor field
         document.querySelectorAll('.editor-toolbar, .editor-dropdown').forEach(container => {
             container.addEventListener('mousedown', (e) => {
@@ -3076,6 +3273,89 @@ const HelloApp = (function() {
                 saveBadge.classList.add('show');
             }
             updateEditorStats();
+        });
+
+        // Writing Templates Controller
+        const templatePicker = document.getElementById('editor-template-picker');
+        if (templatePicker) {
+            templatePicker.addEventListener('mousedown', (e) => {
+                // Ensure dropdown select options don't prevent focus
+                e.stopPropagation();
+            });
+            templatePicker.addEventListener('change', (e) => {
+                const templateId = e.target.value;
+                if (!templateId) return;
+                
+                const TEMPLATES = {
+                    daily: `<h1>☀️ Daily Reflection</h1><h3>🌸 Focus of the Day</h3><p>Write your focus or main goal here...</p><h3>💫 Gratitude</h3><ul><li>I am grateful for...</li></ul><h3>📝 Reflections</h3><p>What went well today? What can be improved?</p>`,
+                    gratitude: `<h1>🌸 Gratitude Journal</h1><h3>❤️ Three Things I Am Grateful For</h3><ol><li>First thing...</li><li>Second thing...</li><li>Third thing...</li></ol><h3>✨ Why these happened</h3><p>Reflect on the positive experiences and why they occurred...</p>`,
+                    evening: `<h1>🌙 Evening Review</h1><h3>🏆 Key Wins & Highlights</h3><ul><li>Win 1...</li></ul><h3>💡 Lessons Learned</h3><p>What did today teach you?</p><h3>🎯 Focus for Tomorrow</h3><p>One key action to take tomorrow...</p>`,
+                    'five-minute': `<h1>⏱️ 5-Minute Journal</h1><h3>☀️ Morning Intentions</h3><p>I will make today great by...</p><p>My daily affirmation: I am...</p><h3>🌙 Evening Reflection</h3><p>3 amazing things that happened today...</p><p>How could I have made today even better?</p>`,
+                    dream: `<h1>💭 Dream Log</h1><h3>🌠 Dream Description</h3><p>Describe your dream in vivid detail (colors, characters, events)...</p><h3>🎭 Recurring Symbols & Themes</h3><p>Any familiar symbols, people, or feelings?</p><h3>🔮 Interpretation</h3><p>What do you think this dream is trying to tell you?</p>`
+                };
+                
+                const selectedHtml = TEMPLATES[templateId];
+                if (!selectedHtml) return;
+                
+                const currentText = stripHtml(editorField.innerHTML).trim();
+                if (currentText.length > 0) {
+                    if (!confirm('Applying this template will replace your current editor content. Do you want to continue?')) {
+                        templatePicker.value = '';
+                        return;
+                    }
+                }
+                
+                editorField.innerHTML = selectedHtml;
+                editorDirty = true;
+                
+                const saveBadge = document.getElementById('save-indicator-badge');
+                if (saveBadge) {
+                    saveBadge.textContent = 'Unsaved Changes';
+                    saveBadge.classList.add('show');
+                }
+                
+                updateEditorStats();
+                editorField.focus();
+                templatePicker.value = '';
+            });
+        }
+
+        // Zen Mode Controller
+        const zenModeBtn = document.getElementById('btn-zen-mode');
+        const zenExitBtn = document.getElementById('btn-zen-exit');
+        const editorScreen = document.getElementById('screen-editor');
+        
+        function toggleZenMode(enable) {
+            if (enable) {
+                editorScreen.classList.add('zen-mode-active');
+                showToast('Zen Mode active (Distraction Free)');
+            } else {
+                editorScreen.classList.remove('zen-mode-active');
+                showToast('Zen Mode disabled');
+            }
+        }
+        
+        if (zenModeBtn) {
+            zenModeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const isActive = editorScreen.classList.contains('zen-mode-active');
+                toggleZenMode(!isActive);
+            });
+        }
+        
+        if (zenExitBtn) {
+            zenExitBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                toggleZenMode(false);
+            });
+        }
+        
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (editorScreen.classList.contains('zen-mode-active')) {
+                    toggleZenMode(false);
+                }
+            }
         });
 
         // 2. Toolbar simple commands

@@ -294,6 +294,11 @@
                     </button>
                     <h2 class="topbar-title font-brand" id="dashboard-title">Timeline</h2>
                     <div class="flex align-center" style="gap: var(--space-xs);">
+                        <button class="topbar-btn" id="btn-filter-favorites" aria-label="Show Favorites Only" title="Show Favorites Only">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                            </svg>
+                        </button>
                         <button class="topbar-btn" id="btn-sound-mixer-toggle" aria-label="Sound Mixer" title="Ambient Mixer">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
@@ -664,6 +669,20 @@
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
+                            
+                            <!-- Auto-Lock Inactivity Timer -->
+                            <div class="flex justify-between align-center" style="margin-bottom: var(--space-md); border-top: 1px solid var(--border-light); padding-top: var(--space-md);">
+                                <div>
+                                    <h4 style="font-size: 0.95rem; font-weight: 500;">Auto-Lock Timeout</h4>
+                                    <p style="font-size: 0.78rem; color: var(--text-secondary);">Automatically lock app after a period of inactivity</p>
+                                </div>
+                                <select id="select-auto-lock" class="input" style="width: 140px; height: 36px; padding: 4px 8px; border-radius: var(--radius-sm); font-size: 0.85rem; background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary); cursor: pointer;">
+                                    <option value="0">Never</option>
+                                    <option value="1">1 Minute</option>
+                                    <option value="5">5 Minutes</option>
+                                    <option value="15">15 Minutes</option>
+                                </select>
+                            </div>
 
                             <!-- Decoy Mode -->
                             <div id="decoy-mode-setup-container" style="margin-bottom: var(--space-md); border-top: 1px solid var(--border-light); padding-top: var(--space-md);">
@@ -797,6 +816,11 @@
          SCREEN 4: EDITOR SCREEN
          ========================================== -->
     <div id="screen-editor" class="screen screen--editor">
+        <!-- Floating Zen Mode Exit Button -->
+        <button class="btn-zen-exit" id="btn-zen-exit" title="Exit Zen Mode">
+            <span>👁️ Exit Zen Mode</span>
+        </button>
+        
         <!-- Editor Header -->
         <header class="editor-topbar">
             <button class="editor-topbar-btn" id="btn-editor-back" aria-label="Back">
@@ -809,6 +833,11 @@
                 <span class="save-indicator" id="save-indicator-badge">Auto-Saved</span>
             </div>
             <div class="flex" style="gap: var(--space-xs);">
+                <button class="editor-topbar-btn" id="btn-editor-favorite" title="Favorite Entry" aria-label="Favorite Entry">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                </button>
                 <button class="editor-topbar-btn" id="btn-editor-sound-mixer-toggle" title="Sound Mixer">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
@@ -913,6 +942,17 @@
             <span class="toolbar-divider"></span>
             <button class="toolbar-btn" id="btn-draw-canvas" title="Draw Canvas">✏️ Draw</button>
             <button class="toolbar-btn" id="btn-record-voice" title="Record Voice">🎙️ Record</button>
+            <span class="toolbar-divider"></span>
+            <button class="toolbar-btn" id="btn-zen-mode" title="Zen Mode (Distraction Free)">👁️ Zen Mode</button>
+            <span class="toolbar-divider"></span>
+            <select id="editor-template-picker" class="toolbar-select" title="Choose Template">
+                <option value="" disabled selected>Templates...</option>
+                <option value="daily">☀️ Daily Reflection</option>
+                <option value="gratitude">🌸 Gratitude Journal</option>
+                <option value="evening">🌙 Evening Review</option>
+                <option value="five-minute">⏱️ 5-Minute Journal</option>
+                <option value="dream">💭 Dream Log</option>
+            </select>
         </div>
 
         <!-- Main text writing core area -->

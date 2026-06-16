@@ -269,7 +269,8 @@ const HelloDB = (function() {
             tags: entryObj.tags || [],
             mood: entryObj.mood || 3,
             weather: entryObj.weather || '',
-            location: entryObj.location || ''
+            location: entryObj.location || '',
+            favorite: !!entryObj.favorite
         });
 
         // Encrypt payload

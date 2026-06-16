@@ -500,3 +500,92 @@
     border: 1px solid var(--border);
 }
 
+/* ==========================================================================
+   Blueprint Additions: Zen Mode & Templates
+   ========================================================================== */
+
+.toolbar-select {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.toolbar-select:hover, .toolbar-select:focus {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.toolbar-select option {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Zen Mode Active Layout Override */
+.screen--editor.zen-mode-active .editor-topbar,
+.screen--editor.zen-mode-active .mood-selector,
+.screen--editor.zen-mode-active .tags-area,
+.screen--editor.zen-mode-active .location-area,
+.screen--editor.zen-mode-active .editor-footer {
+    display: none !important;
+}
+
+.screen--editor.zen-mode-active .editor-toolbar {
+    opacity: 0.05;
+    transition: opacity 0.3s ease;
+    position: absolute;
+    width: 100%;
+    left: 0;
+    top: 0;
+}
+
+.screen--editor.zen-mode-active .editor-toolbar:hover {
+    opacity: 1;
+}
+
+.screen--editor.zen-mode-active .editor-body-wrapper {
+    padding-top: var(--space-xl);
+    height: 100vh;
+}
+
+/* Floating zen Mode exit button */
+.btn-zen-exit {
+    display: none;
+    position: fixed;
+    top: var(--space-md);
+    right: var(--space-md);
+    z-index: 600;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    border-radius: var(--radius-full);
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.screen--editor.zen-mode-active .btn-zen-exit {
+    display: flex;
+}
+
+.btn-zen-exit:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+
