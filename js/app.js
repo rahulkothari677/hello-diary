@@ -1820,11 +1820,15 @@ const HelloApp = (function() {
             if (text) tags.push(text);
         });
         
+        const locInput = document.getElementById('editor-location-input');
+        const locationVal = locInput ? locInput.value.trim() : '';
+
         const entryObj = {
             title: title,
             content: content,
             tags: tags,
             mood: moodVal,
+            location: locationVal,
             date: activeEntryDate || Date.now()
         };
         
@@ -2627,11 +2631,16 @@ const HelloApp = (function() {
         const tooltip = document.getElementById('map-tooltip-card');
         if (tooltip) tooltip.style.display = 'none';
         
+        const geolocatedEntries = isDecoySession ? [] : cachedEntries.filter(e => e.location && e.location.trim() !== '');
+        
+        const helperEl = document.getElementById('map-empty-helper');
+        if (helperEl) {
+            helperEl.style.display = geolocatedEntries.length === 0 ? 'block' : 'none';
+        }
+        
         if (isDecoySession) {
             return;
         }
-        
-        const geolocatedEntries = cachedEntries.filter(e => e.location && e.location.trim() !== '');
         
         geolocatedEntries.forEach(entry => {
             const coords = getCoordsForLocation(entry.location);
