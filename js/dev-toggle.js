@@ -336,9 +336,7 @@ function switchDashboardView(viewId) {
         window.HelloApp.renderGallery();
     }
 
-    if (viewId === 'map' && window.HelloApp && window.HelloApp.renderMap) {
-        window.HelloApp.renderMap();
-    }
+
 
     // Refresh intruder logs if switching to settings tab
     if (viewId === 'settings' && window.HelloApp && window.HelloApp.refreshIntruderLogsUI) {

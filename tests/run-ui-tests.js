@@ -1193,7 +1193,7 @@ async function main() {
             console.log('🎉 ALL BLUEPRINT ADVANCED FEATURE E2E TESTS PASSED! 🎉');
             console.log('=============================================================');
 
-            console.log('\n=== TEST FLOW J: GALLERY GRID, GEOLOCATIONS & INTERACTIVE TRAVEL MAP ===');
+            console.log('\n=== TEST FLOW J: GALLERY GRID & GEOLOCATIONS ===');
             
             // 1. Lock and unlock to exit decoy mode
             console.log('Locking app to exit decoy session...');
@@ -1271,33 +1271,8 @@ async function main() {
             await evaluate('document.getElementById("btn-view-modal-close").click()');
             await sleep(300);
 
-            // 5. Switch to Map view, verify pin is plotted
-            console.log('Switching view to Map tab...');
-            await evaluate('switchDashboardView("map")');
-            await sleep(500);
-
-            let pinsCount = await evaluate('document.querySelectorAll("#map-pins-container .map-pin").length');
-            console.log('✓ Map geolocated pins count:', pinsCount);
-            if (pinsCount !== 1) throw new Error('Expected 1 pin on the travel map, got ' + pinsCount);
-
-            // 6. Click pin to check tooltip card metadata
-            console.log('Clicking geolocated pin...');
-            await evaluate(`
-                const pin = document.querySelector("#map-pins-container .map-pin");
-                pin.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-            `);
-            await sleep(300);
-
-            let isTooltipVisible = await evaluate('document.getElementById("map-tooltip-card").style.display !== "none"');
-            let tooltipTitle = await evaluate('document.getElementById("map-tooltip-title").textContent');
-            console.log('✓ Map pin click tooltip visible status:', isTooltipVisible);
-            console.log('✓ Map pin click tooltip location title:', tooltipTitle);
-            if (!isTooltipVisible || tooltipTitle !== 'San Francisco') {
-                throw new Error('Travel map pin click tooltip failed to show correct metadata.');
-            }
-
             console.log('\n=============================================================');
-            console.log('🎉 ALL STEP 10 GALLERY & TRAVEL MAP E2E TESTS PASSED! 🎉');
+            console.log('🎉 ALL STEP 10 GALLERY & LOCATION E2E TESTS PASSED! 🎉');
             console.log('=============================================================');
 
             ws.close();

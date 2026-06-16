@@ -1192,7 +1192,6 @@ const HelloApp = (function() {
             renderSearchFilters();
             renderAnalytics();
             renderGallery();
-            renderMap();
         } catch (err) {
             console.error('Failed to load dashboard data:', err);
             showToast('Error decrypting diary entries.');
@@ -2511,40 +2510,8 @@ const HelloApp = (function() {
     }
 
     // --------------------------------------------------------------------------
-    // GALLERY AND GEOLOCATED TRAVEL MAP VIEWS
+    // GALLERY VIEW
     // --------------------------------------------------------------------------
-    const locationCoords = {
-        "san francisco": { x: 150, y: 140 },
-        "new york": { x: 220, y: 130 },
-        "london": { x: 348, y: 102 },
-        "paris": { x: 365, y: 115 },
-        "tokyo": { x: 720, y: 130 },
-        "sydney": { x: 680, y: 330 },
-        "cairo": { x: 420, y: 180 },
-        "cape town": { x: 450, y: 340 },
-        "mumbai": { x: 520, y: 190 },
-        "delhi": { x: 525, y: 175 },
-        "rio de janeiro": { x: 210, y: 310 },
-        "berlin": { x: 385, y: 105 },
-        "rome": { x: 385, y: 125 },
-        "moscow": { x: 430, y: 95 },
-        "beijing": { x: 630, y: 125 },
-        "singapore": { x: 580, y: 225 }
-    };
-
-    function getCoordsForLocation(locName) {
-        const norm = locName.trim().toLowerCase();
-        if (locationCoords[norm]) {
-            return locationCoords[norm];
-        }
-        let hash = 0;
-        for (let i = 0; i < norm.length; i++) {
-            hash = norm.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        const x = 100 + Math.abs(hash % 600);
-        const y = 80 + Math.abs((hash >> 8) % 300);
-        return { x, y };
-    }
 
     function renderGallery() {
         const grid = document.getElementById('gallery-grid');
@@ -2596,88 +2563,7 @@ const HelloApp = (function() {
         }
     }
 
-    function showMapTooltip(entry, coords) {
-        const tooltip = document.getElementById('map-tooltip-card');
-        const titleEl = document.getElementById('map-tooltip-title');
-        const dateEl = document.getElementById('map-tooltip-date');
-        const snippetEl = document.getElementById('map-tooltip-snippet');
-        const btnView = document.getElementById('map-tooltip-btn-view');
-        
-        if (!tooltip || !titleEl || !dateEl || !snippetEl || !btnView) return;
-        
-        titleEl.textContent = entry.location;
-        dateEl.textContent = new Date(entry.date).toLocaleDateString('en-US', {
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric'
-        });
-        
-        const cleanBody = entry.content.replace(/<\/?[^>]+(>|$)/g, " ");
-        snippetEl.textContent = entry.title ? `${entry.title}: ${cleanBody}` : cleanBody;
-        
-        tooltip.style.display = 'block';
-        
-        btnView.onclick = () => {
-            openViewModal(entry);
-        };
-    }
 
-    function renderMap() {
-        const pinsContainer = document.getElementById('map-pins-container');
-        if (!pinsContainer) return;
-        
-        pinsContainer.innerHTML = '';
-        
-        const tooltip = document.getElementById('map-tooltip-card');
-        if (tooltip) tooltip.style.display = 'none';
-        
-        const geolocatedEntries = isDecoySession ? [] : cachedEntries.filter(e => e.location && e.location.trim() !== '');
-        
-        const helperEl = document.getElementById('map-empty-helper');
-        if (helperEl) {
-            helperEl.style.display = geolocatedEntries.length === 0 ? 'block' : 'none';
-        }
-        
-        if (isDecoySession) {
-            return;
-        }
-        
-        geolocatedEntries.forEach(entry => {
-            const coords = getCoordsForLocation(entry.location);
-            
-            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            g.setAttribute('transform', `translate(${coords.x}, ${coords.y})`);
-            
-            const pinContent = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            pinContent.setAttribute('class', 'map-pin map-pin-animate');
-            
-            const outerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            outerCircle.setAttribute('class', 'outer');
-            outerCircle.setAttribute('cx', '0');
-            outerCircle.setAttribute('cy', '0');
-            outerCircle.setAttribute('r', '8');
-            outerCircle.setAttribute('fill', 'rgba(107, 127, 215, 0.4)');
-            outerCircle.setAttribute('stroke', 'var(--accent)');
-            outerCircle.setAttribute('stroke-width', '1.5');
-            
-            const innerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            innerCircle.setAttribute('cx', '0');
-            innerCircle.setAttribute('cy', '0');
-            innerCircle.setAttribute('r', '4');
-            innerCircle.setAttribute('fill', '#ffffff');
-            
-            pinContent.appendChild(outerCircle);
-            pinContent.appendChild(innerCircle);
-            g.appendChild(pinContent);
-            
-            g.addEventListener('click', (e) => {
-                e.stopPropagation();
-                showMapTooltip(entry, coords);
-            });
-            
-            pinsContainer.appendChild(g);
-        });
-    }
 
     /**
      * Entrypoint rendering function for the entire Insights Dashboard tab.
@@ -5941,8 +5827,7 @@ const HelloApp = (function() {
         openBookCreator,
         refreshIntruderLogsUI,
         isDecoy: () => isDecoySession,
-        renderGallery,
-        renderMap
+        renderGallery
     };
 
 })();
