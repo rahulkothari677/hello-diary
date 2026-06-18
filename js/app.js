@@ -204,6 +204,12 @@ const HelloApp = (function() {
     // Cryptographic derived key cached ONLY in volatile RAM closure
     let sessionKey = null;
     
+    // Cloud sync E2EE credentials and key cache (volatile RAM only)
+    let syncKey = null;
+    let syncToken = null;
+    let syncUsername = null;
+    let syncSalt = null;
+    
     // In-memory key backup to allow mock biometrics to unlock within an active session
     let biometricBackupKey = null;
     let isDecoySession = false;
@@ -240,6 +246,7 @@ const HelloApp = (function() {
     let editorDirty = false;
     let skipSaveOnPopState = false;
     let autoSaveIntervalId = null;
+    let activeHighlighterColor = null;
     
     // Auto-Lock state
     let autoLockTimeoutId = null;
@@ -260,8 +267,28 @@ const HelloApp = (function() {
             // 1. Initialize DB Connection
             await HelloDB.initDatabase();
 
-            // Register PWA Service Worker
-            if ('serviceWorker' in navigator) {
+            // Unregister any active Service Workers and clear cache in Capacitor context to prevent stale caching issues
+            const isCapacitor = !!window.Capacitor || window.location.protocol === 'capacitor:' || window.location.host === 'localhost';
+            if (isCapacitor && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) {
+                        registration.unregister().then(success => {
+                            if (success) {
+                                console.log('[Service Worker] Unregistered active worker in Capacitor context.');
+                                if ('caches' in window) {
+                                    caches.keys().then(names => {
+                                        for (let name of names) {
+                                            caches.delete(name);
+                                        }
+                                    });
+                                }
+                                window.location.reload();
+                            }
+                        });
+                    }
+                });
+            } else if ('serviceWorker' in navigator) {
+                // Register PWA Service Worker (only in standard web environment)
                 navigator.serviceWorker.register('sw.js')
                     .then(reg => console.log('[Service Worker] Registered:', reg.scope))
                     .catch(err => console.error('[Service Worker] Registration failed:', err));
@@ -435,6 +462,7 @@ const HelloApp = (function() {
 
         if (screenId === 'screen-dashboard' && sessionKey) {
             loadAndRenderDashboard();
+            initCloudSyncEngine();
         }
 
         // Manage history stack
@@ -1462,6 +1490,7 @@ const HelloApp = (function() {
                     try {
                         await HelloDB.updateEntry(entry, sessionKey);
                         await loadAndRenderDashboard();
+                        performCloudSync();
                     } catch (err) {
                         console.error('Failed to toggle favorite status:', err);
                         showToast('Error updating favorite status.');
@@ -1473,6 +1502,7 @@ const HelloApp = (function() {
                 // If the card is currently swiped open, reset it on click instead of viewing details
                 if (card.style.transform === 'translateX(-80px)') {
                     card.style.transform = 'translateX(0px)';
+                    deleteBg.classList.remove('visible');
                 } else {
                     openViewModal(entry);
                 }
@@ -1498,8 +1528,14 @@ const HelloApp = (function() {
                 if (diffX < 0) {
                     const translateVal = Math.max(diffX, -80);
                     card.style.transform = `translateX(${translateVal}px)`;
+                    if (translateVal < -5) {
+                        deleteBg.classList.add('visible');
+                    } else {
+                        deleteBg.classList.remove('visible');
+                    }
                 } else {
                     card.style.transform = 'translateX(0px)';
+                    deleteBg.classList.remove('visible');
                 }
             }, { passive: true });
             
@@ -1511,8 +1547,10 @@ const HelloApp = (function() {
                 
                 if (diffX < -40) {
                     card.style.transform = 'translateX(-80px)';
+                    deleteBg.classList.add('visible');
                 } else {
                     card.style.transform = 'translateX(0px)';
+                    deleteBg.classList.remove('visible');
                 }
             }, { passive: true });
             
@@ -1816,10 +1854,26 @@ const HelloApp = (function() {
         return { title, content };
     }
 
+    function resetHighlighter() {
+        activeHighlighterColor = null;
+        const editorField = document.getElementById('rich-editor-field');
+        if (editorField) {
+            editorField.classList.remove('highlighter-active');
+        }
+        const badge = document.getElementById('highlighter-active-badge');
+        if (badge) {
+            badge.style.display = 'none';
+        }
+        document.querySelectorAll('#dropdown-highlight .color-circle').forEach(c => {
+            c.classList.toggle('active', c.getAttribute('data-highlight') === 'default');
+        });
+    }
+
     async function openNewEditor() {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById('screen-editor').classList.add('active');
         document.getElementById('screen-editor').classList.remove('zen-mode-active');
+        resetHighlighter();
         
         // Pre-generate ID for auto-save draft capability
         activeEntryId = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
@@ -1862,6 +1916,7 @@ const HelloApp = (function() {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById('screen-editor').classList.add('active');
         document.getElementById('screen-editor').classList.remove('zen-mode-active');
+        resetHighlighter();
         
         activeEntryId = entry.id;
         activeEntryDate = entry.date;
@@ -1947,6 +2002,7 @@ const HelloApp = (function() {
             
             await HelloDB.updateEntry(entryObj, sessionKey);
             editorDirty = false;
+            performCloudSync();
             
             const saveBadge = document.getElementById('save-indicator-badge');
             if (saveBadge) {
@@ -2067,6 +2123,7 @@ const HelloApp = (function() {
             
             await HelloDB.updateEntry(entryObj, sessionKey);
             editorDirty = false;
+            performCloudSync();
             
             if (saveBadge) {
                 saveBadge.textContent = 'Auto-Saved';
@@ -3185,6 +3242,7 @@ const HelloApp = (function() {
                     activeEntryId = null;
                     showToast('Entry deleted successfully.');
                     await loadAndRenderDashboard();
+                    performCloudSync();
                 }
                 
                 skipSaveOnPopState = true;
@@ -3315,14 +3373,164 @@ const HelloApp = (function() {
             });
         }
 
-        // Prevent toolbar/dropdown clicks from stealing focus/selection from the editor field
+        // Prevent toolbar/dropdown clicks from stealing focus/selection from the editor field on all viewports
         document.querySelectorAll('.editor-toolbar, .editor-dropdown').forEach(container => {
-            container.addEventListener('mousedown', (e) => {
+            container.addEventListener('pointerdown', (e) => {
                 // Do not prevent default for actual input fields (like inputs or textareas)
                 if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
                     e.preventDefault();
                 }
             });
+        });
+
+        // Selection range preservation logic
+        let savedRange = null;
+
+        function saveSelection() {
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0) {
+                const range = sel.getRangeAt(0);
+                if (editorField.contains(range.startContainer) && editorField.contains(range.endContainer)) {
+                    savedRange = range.cloneRange();
+                }
+            }
+        }
+
+        function restoreSelection() {
+            if (savedRange) {
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(savedRange);
+            }
+        }
+
+        // Bind selection savers
+        ['keyup', 'mouseup', 'touchend', 'input'].forEach(evt => {
+            editorField.addEventListener(evt, saveSelection);
+        });
+
+        function updateHighlighterBadge() {
+            const badge = document.getElementById('highlighter-active-badge');
+            if (!badge) return;
+            if (activeHighlighterColor) {
+                badge.style.display = 'flex';
+                badge.style.background = activeHighlighterColor;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        const clearHighlightBtn = document.getElementById('btn-clear-highlighter');
+        if (clearHighlightBtn) {
+            clearHighlightBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                activeHighlighterColor = null;
+                editorField.classList.remove('highlighter-active');
+                document.querySelectorAll('#dropdown-highlight .color-circle').forEach(c => {
+                    c.classList.toggle('active', c.getAttribute('data-highlight') === 'default');
+                });
+                updateHighlighterBadge();
+            });
+        }
+
+        // Helper to get caret range from a client coordinate
+        function getCaretRangeFromPoint(x, y) {
+            if (document.caretRangeFromPoint) {
+                return document.caretRangeFromPoint(x, y);
+            } else if (document.caretPositionFromPoint) {
+                const position = document.caretPositionFromPoint(x, y);
+                if (position) {
+                    const range = document.createRange();
+                    range.setStart(position.offsetNode, position.offset);
+                    range.setEnd(position.offsetNode, position.offset);
+                    return range;
+                }
+            }
+            return null;
+        }
+
+        let highlightStartRange = null;
+        let isHighlightingDrag = false;
+
+        // Touch swipe-to-highlight engine for mobile viewports
+        editorField.addEventListener('touchstart', (e) => {
+            if (activeHighlighterColor) {
+                // Prevent scrolling and default selection UI while highlighting
+                e.preventDefault();
+                const touch = e.touches[0];
+                highlightStartRange = getCaretRangeFromPoint(touch.clientX, touch.clientY);
+                isHighlightingDrag = true;
+            }
+        }, { passive: false });
+
+        editorField.addEventListener('touchmove', (e) => {
+            if (isHighlightingDrag && activeHighlighterColor) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const currentRange = getCaretRangeFromPoint(touch.clientX, touch.clientY);
+                if (highlightStartRange && currentRange) {
+                    const sel = window.getSelection();
+                    const range = document.createRange();
+                    
+                    try {
+                        const compare = highlightStartRange.compareBoundaryPoints(Range.START_TO_START, currentRange);
+                        if (compare <= 0) {
+                            range.setStart(highlightStartRange.startContainer, highlightStartRange.startOffset);
+                            range.setEnd(currentRange.startContainer, currentRange.startOffset);
+                        } else {
+                            range.setStart(currentRange.startContainer, currentRange.startOffset);
+                            range.setEnd(highlightStartRange.startContainer, highlightStartRange.startOffset);
+                        }
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    } catch (err) {
+                        // Safe catch for boundary calculations
+                    }
+                }
+            }
+        }, { passive: false });
+
+        editorField.addEventListener('touchend', (e) => {
+            if (isHighlightingDrag && activeHighlighterColor) {
+                isHighlightingDrag = false;
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0 && !sel.isCollapsed) {
+                    document.execCommand('hiliteColor', false, activeHighlighterColor);
+                    editorDirty = true;
+                    updateEditorStats();
+                    const saveBadge = document.getElementById('save-indicator-badge');
+                    if (saveBadge) {
+                        saveBadge.textContent = 'Unsaved Changes';
+                        saveBadge.classList.add('show');
+                    }
+                }
+                sel.removeAllRanges();
+                saveSelection();
+                highlightStartRange = null;
+            }
+        });
+
+        // Desktop mouse drag-and-release highlights
+        editorField.addEventListener('pointerup', () => {
+            if (activeHighlighterColor) {
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0 && !sel.isCollapsed) {
+                    const range = sel.getRangeAt(0);
+                    if (editorField.contains(range.startContainer) && editorField.contains(range.endContainer)) {
+                        // Apply immediately to the active range selected by user mouse dragging
+                        document.execCommand('hiliteColor', false, activeHighlighterColor);
+                        sel.removeAllRanges();
+                        editorDirty = true;
+                        updateEditorStats();
+                        const saveBadge = document.getElementById('save-indicator-badge');
+                        if (saveBadge) {
+                            saveBadge.textContent = 'Unsaved Changes';
+                            saveBadge.classList.add('show');
+                        }
+                    }
+                }
+                saveSelection();
+            }
         });
 
         // 1. Text input listener for stats & dirty state
@@ -3426,6 +3634,9 @@ const HelloApp = (function() {
                 const cmd = btn.dataset.cmd;
                 const val = btn.dataset.val || null;
                 
+                editorField.focus();
+                restoreSelection();
+                
                 if (cmd === 'h1' || cmd === 'h2') {
                     document.execCommand('formatBlock', false, `<${cmd}>`);
                 } else if (cmd === 'quote') {
@@ -3443,6 +3654,7 @@ const HelloApp = (function() {
                 
                 updateEditorStats();
                 editorField.focus();
+                saveSelection();
             });
         });
 
@@ -3451,6 +3663,8 @@ const HelloApp = (function() {
         if (insertLinkBtn) {
             insertLinkBtn.addEventListener('click', (e) => {
                 e.preventDefault();
+                editorField.focus();
+                restoreSelection();
                 const url = prompt('Enter the link URL (e.g., https://example.com):');
                 if (url) {
                     let cleanUrl = url.trim();
@@ -3465,6 +3679,7 @@ const HelloApp = (function() {
                         saveBadge.classList.add('show');
                     }
                     editorField.focus();
+                    saveSelection();
                 }
             });
         }
@@ -3596,6 +3811,9 @@ const HelloApp = (function() {
                 document.querySelectorAll('#dropdown-color .color-circle').forEach(c => c.classList.remove('active'));
                 circle.classList.add('active');
                 
+                editorField.focus();
+                restoreSelection();
+                
                 if (colorVal === 'default') {
                     document.execCommand('foreColor', false, 'inherit');
                 } else {
@@ -3611,22 +3829,34 @@ const HelloApp = (function() {
                 
                 const dropdown = document.getElementById('dropdown-color');
                 if (dropdown) dropdown.classList.remove('active');
+                
+                editorField.focus();
+                saveSelection();
             });
         });
 
         // 9. Highlight picker options selection
         document.querySelectorAll('#dropdown-highlight .color-circle').forEach(circle => {
             circle.addEventListener('click', () => {
-                const highlightVal = circle.dataset.highlight;
+                const highlightVal = circle.getAttribute('data-highlight');
                 
                 document.querySelectorAll('#dropdown-highlight .color-circle').forEach(c => c.classList.remove('active'));
                 circle.classList.add('active');
                 
+                editorField.focus();
+                restoreSelection();
+                
                 if (highlightVal === 'default') {
+                    activeHighlighterColor = null;
+                    editorField.classList.remove('highlighter-active');
                     document.execCommand('hiliteColor', false, 'rgba(0,0,0,0)');
                 } else {
+                    activeHighlighterColor = highlightVal;
+                    editorField.classList.add('highlighter-active');
                     document.execCommand('hiliteColor', false, highlightVal);
                 }
+                
+                updateHighlighterBadge();
                 
                 editorDirty = true;
                 const saveBadge = document.getElementById('save-indicator-badge');
@@ -3637,6 +3867,9 @@ const HelloApp = (function() {
                 
                 const dropdown = document.getElementById('dropdown-highlight');
                 if (dropdown) dropdown.classList.remove('active');
+                
+                editorField.focus();
+                saveSelection();
             });
         });
 
@@ -5002,6 +5235,159 @@ const HelloApp = (function() {
                 if (!ignoredKeys.includes(e.key)) {
                     HelloAudio.playTypewriterClick();
                 }
+                
+                // --- Highlight & Color Formatting Bleeding Fix ---
+                // Only handle printable characters (length 1) and exclude control/command shortcuts
+                if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) {
+                    return;
+                }
+                
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+                
+                const range = selection.getRangeAt(0);
+                if (!range.collapsed) return;
+                
+                let node = selection.anchorNode;
+                let formatNode = null;
+                
+                // Traverse up to find any formatted element (FONT or SPAN with color/bg-color)
+                while (node && node !== editorField) {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        const tagName = node.tagName.toUpperCase();
+                        if (tagName === 'FONT' || (tagName === 'SPAN' && (node.style.backgroundColor || node.style.color))) {
+                            formatNode = node;
+                            break;
+                        }
+                    }
+                    node = node.parentNode;
+                }
+                
+                if (formatNode) {
+                    const anchorNode = selection.anchorNode;
+                    const offset = selection.anchorOffset;
+                    
+                    // Verify if selection is at the very end of the text inside the formatting node
+                    const isAtTextEnd = (anchorNode.nodeType === Node.TEXT_NODE && offset === anchorNode.length);
+                    
+                    // Verify if there are no subsequent sibling nodes inside the formatting container
+                    let isLastChild = true;
+                    let temp = anchorNode;
+                    while (temp && temp !== formatNode) {
+                        if (temp.nextSibling) {
+                            isLastChild = false;
+                            break;
+                        }
+                        temp = temp.parentNode;
+                    }
+                    
+                    if (isAtTextEnd && isLastChild) {
+                        // Prevent default typing behavior inside the formatted element
+                        e.preventDefault();
+                        
+                        const next = formatNode.nextSibling;
+                        if (next && next.nodeType === Node.TEXT_NODE) {
+                            // Insert at start of the existing next text sibling
+                            next.insertData(0, e.key);
+                            const newRange = document.createRange();
+                            newRange.setStart(next, 1);
+                            newRange.setEnd(next, 1);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                        } else {
+                            // Create a new text node and append after the formatting container
+                            const textNode = document.createTextNode(e.key);
+                            if (next) {
+                                formatNode.parentNode.insertBefore(textNode, next);
+                            } else {
+                                formatNode.parentNode.appendChild(textNode);
+                            }
+                            const newRange = document.createRange();
+                            newRange.setStart(textNode, 1);
+                            newRange.setEnd(textNode, 1);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                        }
+                        
+                        // Dispatch input event so character counters and state updates sync
+                        editorField.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
+            });
+
+            // Mobile-friendly input handler to resolve virtual keyboard formatting issues
+            editorField.addEventListener('beforeinput', (e) => {
+                if (e.inputType !== 'insertText') {
+                    return;
+                }
+                
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+                
+                const range = selection.getRangeAt(0);
+                if (!range.collapsed) return;
+                
+                let node = selection.anchorNode;
+                let formatNode = null;
+                
+                while (node && node !== editorField) {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        const tagName = node.tagName.toUpperCase();
+                        if (tagName === 'FONT' || (tagName === 'SPAN' && (node.style.backgroundColor || node.style.color))) {
+                            formatNode = node;
+                            break;
+                        }
+                    }
+                    node = node.parentNode;
+                }
+                
+                if (formatNode) {
+                    const anchorNode = selection.anchorNode;
+                    const offset = selection.anchorOffset;
+                    
+                    const isAtTextEnd = (anchorNode.nodeType === Node.TEXT_NODE && offset === anchorNode.length);
+                    
+                    let isLastChild = true;
+                    let temp = anchorNode;
+                    while (temp && temp !== formatNode) {
+                        if (temp.nextSibling) {
+                            isLastChild = false;
+                            break;
+                        }
+                        temp = temp.parentNode;
+                    }
+                    
+                    if (isAtTextEnd && isLastChild) {
+                        e.preventDefault();
+                        
+                        const textToInsert = e.data;
+                        if (!textToInsert) return;
+                        
+                        const next = formatNode.nextSibling;
+                        if (next && next.nodeType === Node.TEXT_NODE) {
+                            next.insertData(0, textToInsert);
+                            const newRange = document.createRange();
+                            newRange.setStart(next, textToInsert.length);
+                            newRange.setEnd(next, textToInsert.length);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                        } else {
+                            const textNode = document.createTextNode(textToInsert);
+                            if (next) {
+                                formatNode.parentNode.insertBefore(textNode, next);
+                            } else {
+                                formatNode.parentNode.appendChild(textNode);
+                            }
+                            const newRange = document.createRange();
+                            newRange.setStart(textNode, textToInsert.length);
+                            newRange.setEnd(textNode, textToInsert.length);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                        }
+                        
+                        editorField.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
             });
         }
 
@@ -5210,7 +5596,7 @@ const HelloApp = (function() {
 
     let selectedEntryIds = [];
     let selectedCoverTheme = 'midnight-stars';
-    let selectedPageTheme = 'clean-white';
+    let selectedPageTheme = 'vintage-typewriter';
     let activePreviewTab = 'front';
 
     const SVG_TEMPLATES = {
@@ -5258,7 +5644,7 @@ const HelloApp = (function() {
         
         // Initialize options
         selectedCoverTheme = 'midnight-stars';
-        selectedPageTheme = 'clean-white';
+        selectedPageTheme = 'vintage-typewriter';
         activePreviewTab = 'front';
         
         // Reset active classes on controls
@@ -5441,11 +5827,11 @@ const HelloApp = (function() {
                 </div>
             `;
         } else if (activePreviewTab === 'inside') {
-            if (selectedPageTheme === 'clean-white') previewPage.classList.add('preview-page-clean');
-            else if (selectedPageTheme === 'parchment-journal') previewPage.classList.add('preview-page-parchment');
-            else if (selectedPageTheme === 'sakura-blush') previewPage.classList.add('preview-page-sakura');
-            else if (selectedPageTheme === 'midnight-sky') previewPage.classList.add('preview-page-midnight');
-            else if (selectedPageTheme === 'notebook-lined') previewPage.classList.add('preview-page-lined');
+            if (selectedPageTheme === 'vintage-typewriter') previewPage.classList.add('preview-page-typewriter');
+            else if (selectedPageTheme === 'autumn-harvest') previewPage.classList.add('preview-page-autumn');
+            else if (selectedPageTheme === 'sakura-garden') previewPage.classList.add('preview-page-sakura');
+            else if (selectedPageTheme === 'midnight-stars') previewPage.classList.add('preview-page-midnight');
+            else if (selectedPageTheme === 'minimal-zen') previewPage.classList.add('preview-page-zen');
             
             let entry = null;
             if (selectedEntryIds.length > 0) {
@@ -5570,11 +5956,11 @@ const HelloApp = (function() {
             const tagsStr = (entry.tags || []).map(t => `<span class="pdf-tag">#${t}</span>`).join(' ');
             
             // Map selectedPageTheme precisely to the correct print page class
-            let pageThemeClass = 'page-clean-white';
-            if (selectedPageTheme === 'parchment-journal') pageThemeClass = 'page-parchment-journal';
-            else if (selectedPageTheme === 'sakura-blush') pageThemeClass = 'page-sakura-blush';
-            else if (selectedPageTheme === 'midnight-sky') pageThemeClass = 'page-midnight-sky';
-            else if (selectedPageTheme === 'notebook-lined') pageThemeClass = 'page-notebook-lined';
+            let pageThemeClass = 'page-vintage-typewriter';
+            if (selectedPageTheme === 'autumn-harvest') pageThemeClass = 'page-autumn-harvest';
+            else if (selectedPageTheme === 'sakura-garden') pageThemeClass = 'page-sakura-blush';
+            else if (selectedPageTheme === 'midnight-stars') pageThemeClass = 'page-midnight-sky';
+            else if (selectedPageTheme === 'minimal-zen') pageThemeClass = 'page-minimal-zen';
             
             insidePagesHtml += `
                 <div class="print-page ${pageThemeClass}">
@@ -5750,10 +6136,10 @@ const HelloApp = (function() {
             border: 24px double #F6E27F;
         }
         .print-cover-stars.front {
-            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_12_48 PM.png') !important;
+            background-image: url('${appPath}/front cover/midnight_stars.png') !important;
         }
         .print-cover-stars.back {
-            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_30_14 PM.png') !important;
+            background-image: url('${appPath}/back cover/midnight_stars.png') !important;
         }
         .print-cover-stars::before {
             content: ''; position: absolute; inset: 0; background: rgba(13, 14, 44, 0.45); z-index: 1;
@@ -5771,10 +6157,10 @@ const HelloApp = (function() {
             border: 16px solid #F8D3D9;
         }
         .print-cover-sakura.front {
-            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_12_35 PM.png') !important;
+            background-image: url('${appPath}/front cover/sakura_garden.png') !important;
         }
         .print-cover-sakura.back {
-            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_30_03 PM.png') !important;
+            background-image: url('${appPath}/back cover/sakura_garden.png') !important;
         }
         .print-cover-sakura::before {
             content: ''; position: absolute; inset: 0; background: rgba(255, 242, 244, 0.25); z-index: 1;
@@ -5793,10 +6179,10 @@ const HelloApp = (function() {
             outline-offset: -24px;
         }
         .print-cover-autumn.front {
-            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_13_14 PM.png') !important;
+            background-image: url('${appPath}/front cover/autumn_harvest.png') !important;
         }
         .print-cover-autumn.back {
-            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_30_36 PM.png') !important;
+            background-image: url('${appPath}/back cover/autumn_harvest.png') !important;
         }
         .print-cover-autumn::before {
             content: ''; position: absolute; inset: 0; background: rgba(124, 54, 38, 0.35); z-index: 1;
@@ -5813,10 +6199,10 @@ const HelloApp = (function() {
             border: 1px solid #999;
         }
         .print-cover-zen.front {
-            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_14_55 PM.png') !important;
+            background-image: url('${appPath}/front cover/minimal_zen.png') !important;
         }
         .print-cover-zen.back {
-            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_30_49 PM.png') !important;
+            background-image: url('${appPath}/back cover/minimal_zen.png') !important;
         }
         .print-cover-zen::before {
             content: ''; position: absolute; inset: 30px; border: 1px solid #BBB; z-index: 1;
@@ -5833,10 +6219,10 @@ const HelloApp = (function() {
             border: 20px double #5D4037;
         }
         .print-cover-typewriter.front {
-            background-image: url('${appPath}/front cover/ChatGPT Image Jun 15, 2026, 12_24_44 PM.png') !important;
+            background-image: url('${appPath}/front cover/vintage_typewriter.png') !important;
         }
         .print-cover-typewriter.back {
-            background-image: url('${appPath}/back cover/ChatGPT Image Jun 15, 2026, 05_31_08 PM.png') !important;
+            background-image: url('${appPath}/back cover/vintage_typewriter.png') !important;
         }
         .print-cover-typewriter::before {
             content: ''; position: absolute; inset: 24px; border: 2px solid #5D4037; z-index: 1;
@@ -5856,33 +6242,33 @@ const HelloApp = (function() {
             box-sizing: border-box;
         }
 
-        .page-clean-white {
+        .page-vintage-typewriter {
             background: #FCFCFB !important;
-            background-image: url('${appPath}/inside pages/ChatGPT Image Jun 15, 2026, 05_31_38 PM.png') !important;
+            background-image: url('${appPath}/inside pages/vintage_typewriter.png') !important;
             background-size: cover !important;
             background-position: center !important;
             color: #222222 !important;
             border: 2px solid #EAE6DF;
         }
-        .page-clean-white::before {
+        .page-vintage-typewriter::before {
             content: ''; position: absolute; inset: 20px; border: 1px solid rgba(0,0,0,0.08); pointer-events: none;
         }
 
-        .page-parchment-journal {
+        .page-autumn-harvest {
             background: #F4EED9 !important;
-            background-image: url('${appPath}/inside pages/ChatGPT Image Jun 15, 2026, 05_31_31 PM.png') !important;
+            background-image: url('${appPath}/inside pages/autumn_harvest.png') !important;
             background-size: cover !important;
             background-position: center !important;
             color: #3E2723 !important;
             border: 6px solid #D0C5A9;
         }
-        .page-parchment-journal::before {
+        .page-autumn-harvest::before {
             content: ''; position: absolute; inset: 12px; border: 1px double rgba(0,0,0,0.12); pointer-events: none;
         }
 
         .page-sakura-blush {
             background: #FFF2F4 !important;
-            background-image: url('${appPath}/inside pages/ChatGPT Image Jun 15, 2026, 05_31_25 PM.png') !important;
+            background-image: url('${appPath}/inside pages/sakura_garden.png') !important;
             background-size: cover !important;
             background-position: center !important;
             color: #4A1525 !important;
@@ -5895,7 +6281,7 @@ const HelloApp = (function() {
 
         .page-midnight-sky {
             background: #0B0C16 !important;
-            background-image: url('${appPath}/inside pages/ChatGPT Image Jun 15, 2026, 05_31_19 PM.png') !important;
+            background-image: url('${appPath}/inside pages/midnight_stars.png') !important;
             background-size: cover !important;
             background-position: center !important;
             color: #FFFFFF !important;
@@ -5906,17 +6292,13 @@ const HelloApp = (function() {
         }
         .page-midnight-sky * { position: relative; z-index: 2; }
 
-        .page-notebook-lined {
+        .page-minimal-zen {
             background: #FCFBF7 !important;
-            background-image: url('${appPath}/inside pages/ChatGPT Image Jun 15, 2026, 05_31_44 PM.png') !important;
+            background-image: url('${appPath}/inside pages/minimal_zen.png') !important;
             background-size: cover !important;
             background-position: center !important;
-            padding-left: 80px !important;
             border: 2px solid #EAE6DF;
             color: #222222 !important;
-        }
-        .page-notebook-lined::before {
-            content: ''; position: absolute; left: 60px; top: 0; bottom: 0; width: 1.5px; background: rgba(255,0,0,0.15); pointer-events: none;
         }
 
         /* Entries layout in print */
@@ -6327,6 +6709,425 @@ const HelloApp = (function() {
                 }
             }, { passive: true });
         }
+        // --- E2EE Cloud Sync UI Listeners ---
+        const btnLogin = document.getElementById('btn-sync-login');
+        const btnRegister = document.getElementById('btn-sync-register');
+        const btnLogout = document.getElementById('btn-sync-logout');
+        const btnSyncNow = document.getElementById('btn-sync-now');
+
+        if (btnLogin) {
+            btnLogin.addEventListener('click', async () => {
+                const usernameInput = document.getElementById('sync-username');
+                const passwordInput = document.getElementById('sync-password');
+                const username = usernameInput ? usernameInput.value.trim() : '';
+                const password = passwordInput ? passwordInput.value : '';
+                if (!username || !password) {
+                    showSyncError('Please enter both username and password.');
+                    return;
+                }
+                await handleSyncLogin(username, password);
+            });
+        }
+
+        if (btnRegister) {
+            btnRegister.addEventListener('click', async () => {
+                const usernameInput = document.getElementById('sync-username');
+                const passwordInput = document.getElementById('sync-password');
+                const username = usernameInput ? usernameInput.value.trim() : '';
+                const password = passwordInput ? passwordInput.value : '';
+                if (!username || !password) {
+                    showSyncError('Please enter both username and password.');
+                    return;
+                }
+                if (username.length < 3) {
+                    showSyncError('Username must be at least 3 characters.');
+                    return;
+                }
+                if (password.length < 6) {
+                    showSyncError('Password must be at least 6 characters.');
+                    return;
+                }
+                await handleSyncRegister(username, password);
+            });
+        }
+
+        if (btnLogout) {
+            btnLogout.addEventListener('click', async () => {
+                await handleSyncLogout();
+            });
+        }
+
+        if (btnSyncNow) {
+            btnSyncNow.addEventListener('click', async () => {
+                await performCloudSync();
+            });
+        }
+    }
+
+    // ==========================================================================
+    // E2EE CLOUD SYNC ENGINE IMPLEMENTATION
+    // ==========================================================================
+    async function saveSyncPasswordLocally(syncPassword) {
+        if (!sessionKey) return;
+        const { ciphertext, iv } = await HelloCrypto.encryptString(syncPassword, sessionKey);
+        await HelloDB.setSetting('sync_enc_pwd', ciphertext);
+        await HelloDB.setSetting('sync_enc_pwd_iv', iv);
+    }
+
+    async function loadSyncPasswordLocally() {
+        if (!sessionKey) return null;
+        const ciphertext = await HelloDB.getSetting('sync_enc_pwd');
+        const iv = await HelloDB.getSetting('sync_enc_pwd_iv');
+        if (!ciphertext || !iv) return null;
+        try {
+            return await HelloCrypto.decryptString(ciphertext, iv, sessionKey);
+        } catch (err) {
+            console.error('Failed to decrypt sync password with sessionKey:', err);
+            return null;
+        }
+    }
+
+    async function initCloudSyncEngine() {
+        if (!sessionKey) return;
+
+        // Load sync settings from database
+        syncUsername = await HelloDB.getSetting('sync_username');
+        syncToken = await HelloDB.getSetting('sync_token');
+        syncSalt = await HelloDB.getSetting('sync_salt');
+
+        const savedServerUrl = await HelloDB.getSetting('sync_server_url');
+        const serverUrlInput = document.getElementById('sync-server-url');
+        if (serverUrlInput) {
+            serverUrlInput.value = savedServerUrl || 'http://localhost:3000';
+            serverUrlInput.addEventListener('change', async () => {
+                await HelloDB.setSetting('sync_server_url', serverUrlInput.value.trim());
+            });
+        }
+
+        if (syncUsername && syncToken && syncSalt) {
+            const password = await loadSyncPasswordLocally();
+            if (password) {
+                try {
+                    syncKey = await HelloCrypto.deriveKey(password, syncSalt);
+                    updateSyncUI();
+                    performCloudSync(); // Trigger initial sync
+                } catch (err) {
+                    console.error('Failed to auto-derive syncKey:', err);
+                    updateSyncUI();
+                }
+            } else {
+                updateSyncUI();
+            }
+        } else {
+            updateSyncUI();
+        }
+    }
+
+    async function syncApiRequest(endpoint, method, body = null, token = null) {
+        const serverUrlInput = document.getElementById('sync-server-url');
+        const baseUrl = serverUrlInput ? serverUrlInput.value.trim() : 'http://localhost:3000';
+        
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const config = {
+            method: method,
+            headers: headers
+        };
+        if (body) {
+            config.body = JSON.stringify(body);
+        }
+
+        const res = await fetch(`${baseUrl}${endpoint}`, config);
+        if (!res.ok) {
+            const errJson = await res.json().catch(() => ({}));
+            throw new Error(errJson.error || `Server returned ${res.status}`);
+        }
+        return res.json();
+    }
+
+    async function handleSyncRegister(username, password) {
+        try {
+            updateSyncUIStatus('Registering...', 'info');
+            const salt = HelloCrypto.generateSalt();
+            
+            const authPasswordBytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(username.toLowerCase() + ':' + password));
+            const authPasswordHex = HelloCrypto.bufferToHex(authPasswordBytes);
+
+            await syncApiRequest('/api/auth/register', 'POST', {
+                username: username,
+                password: authPasswordHex,
+                salt: salt
+            });
+
+            updateSyncUIStatus('Registered! Logging in...', 'info');
+            await handleSyncLogin(username, password);
+        } catch (err) {
+            console.error('Registration failed:', err);
+            showSyncError(err.message);
+        }
+    }
+
+    async function handleSyncLogin(username, password) {
+        try {
+            updateSyncUIStatus('Logging in...', 'info');
+            const cleanUser = username.toLowerCase().trim();
+            
+            const saltRes = await syncApiRequest(`/api/auth/salt?username=${encodeURIComponent(cleanUser)}`, 'GET');
+            const salt = saltRes.salt;
+
+            const authPasswordBytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(cleanUser + ':' + password));
+            const authPasswordHex = HelloCrypto.bufferToHex(authPasswordBytes);
+
+            const loginRes = await syncApiRequest('/api/auth/login', 'POST', {
+                username: cleanUser,
+                password: authPasswordHex
+            });
+
+            const derivedSyncKey = await HelloCrypto.deriveKey(password, salt);
+
+            await HelloDB.setSetting('sync_username', cleanUser);
+            await HelloDB.setSetting('sync_token', loginRes.token);
+            await HelloDB.setSetting('sync_salt', salt);
+
+            syncUsername = cleanUser;
+            syncToken = loginRes.token;
+            syncSalt = salt;
+            syncKey = derivedSyncKey;
+
+            await saveSyncPasswordLocally(password);
+
+            updateSyncUI();
+            await performCloudSync();
+        } catch (err) {
+            console.error('Login failed:', err);
+            showSyncError(err.message);
+        }
+    }
+
+    async function handleSyncLogout() {
+        await HelloDB.setSetting('sync_username', null);
+        await HelloDB.setSetting('sync_token', null);
+        await HelloDB.setSetting('sync_salt', null);
+        await HelloDB.setSetting('sync_enc_pwd', null);
+        await HelloDB.setSetting('sync_enc_pwd_iv', null);
+        await HelloDB.setSetting('sync_last_time', null);
+
+        syncUsername = null;
+        syncToken = null;
+        syncSalt = null;
+        syncKey = null;
+
+        const usernameInput = document.getElementById('sync-username');
+        const passwordInput = document.getElementById('sync-password');
+        if (usernameInput) usernameInput.value = '';
+        if (passwordInput) passwordInput.value = '';
+
+        updateSyncUI();
+        showToast('Logged out from Cloud Sync. ✓');
+    }
+
+    async function performCloudSync() {
+        if (!syncToken || !syncKey || !sessionKey) {
+            return;
+        }
+
+        const syncBadge = document.getElementById('sync-badge');
+        if (syncBadge) {
+            syncBadge.textContent = 'SYNCING...';
+            syncBadge.style.background = 'rgba(107, 127, 215, 0.2)';
+            syncBadge.style.color = 'var(--accent)';
+        }
+
+        try {
+            const lastSyncedTime = Number(await HelloDB.getSetting('sync_last_time')) || 0;
+            const allRawEntries = await HelloDB.getAllRawEntries();
+            const deletedEntries = await HelloDB.getDeletedEntries();
+
+            const changes = [];
+
+            // Add deletions
+            deletedEntries.forEach(del => {
+                changes.push({
+                    id: del.id,
+                    encrypted_data: '',
+                    updated_at: del.deletedAt,
+                    deleted: true
+                });
+            });
+
+            // Add inserts/updates
+            for (const entry of allRawEntries) {
+                const updatedAt = Number(entry.updatedAt) || Number(entry.date) || 0;
+                if (updatedAt > lastSyncedTime) {
+                    let plaintextStr;
+                    try {
+                        plaintextStr = await HelloCrypto.decryptString(entry.payload, entry.iv, sessionKey);
+                    } catch (decErr) {
+                        console.error(`Failed to decrypt local entry ${entry.id} for sync:`, decErr);
+                        continue;
+                    }
+
+                    const { ciphertext, iv } = await HelloCrypto.encryptString(plaintextStr, syncKey);
+
+                    changes.push({
+                        id: entry.id,
+                        encrypted_data: JSON.stringify({
+                            ciphertext,
+                            iv,
+                            date: entry.date
+                        }),
+                        updated_at: updatedAt,
+                        deleted: false
+                    });
+                }
+            }
+
+            const syncRes = await syncApiRequest('/api/sync', 'POST', {
+                lastSyncedTime: lastSyncedTime,
+                changes: changes
+            }, syncToken);
+
+            const { updates, syncTime } = syncRes;
+
+            let localChangesMade = false;
+            for (const update of updates) {
+                if (update.deleted) {
+                    await HelloDB.deleteEntry(update.id);
+                    localChangesMade = true;
+                } else {
+                    let serverPayload;
+                    try {
+                        serverPayload = JSON.parse(update.encrypted_data);
+                    } catch (parseErr) {
+                        console.error('Failed to parse sync encrypted data:', parseErr);
+                        continue;
+                    }
+
+                    let plaintextStr;
+                    try {
+                        plaintextStr = await HelloCrypto.decryptString(serverPayload.ciphertext, serverPayload.iv, syncKey);
+                    } catch (decErr) {
+                        console.error(`Failed to decrypt sync entry ${update.id}:`, decErr);
+                        continue;
+                    }
+
+                    const { ciphertext: localCiphertext, iv: localIv } = await HelloCrypto.encryptString(plaintextStr, sessionKey);
+
+                    const restoredRecord = {
+                        id: update.id,
+                        date: serverPayload.date || update.updated_at,
+                        updatedAt: update.updated_at,
+                        payload: localCiphertext,
+                        iv: localIv
+                    };
+                    await HelloDB.restoreRawEntry(restoredRecord);
+                    localChangesMade = true;
+                }
+            }
+
+            await HelloDB.setSetting('sync_last_time', syncTime);
+            
+            const syncedDeletedIds = deletedEntries.map(del => del.id);
+            await HelloDB.clearDeletedEntries(syncedDeletedIds);
+
+            if (syncBadge) {
+                syncBadge.textContent = 'ONLINE';
+                syncBadge.style.background = 'rgba(45, 138, 78, 0.15)';
+                syncBadge.style.color = '#2d8a4e';
+            }
+
+            const syncTimeDisplay = document.getElementById('sync-time-display');
+            if (syncTimeDisplay) {
+                const syncDate = new Date(syncTime);
+                syncTimeDisplay.textContent = syncDate.toLocaleTimeString() + ' ' + syncDate.toLocaleDateString();
+            }
+
+            const successMsg = document.getElementById('sync-success-msg');
+            if (successMsg) {
+                successMsg.textContent = 'Sync completed successfully!';
+                successMsg.style.display = 'block';
+                setTimeout(() => { successMsg.style.display = 'none'; }, 3000);
+            }
+
+            if (localChangesMade) {
+                await loadAndRenderDashboard();
+            }
+
+        } catch (err) {
+            console.error('Sync execution failed:', err);
+            if (syncBadge) {
+                syncBadge.textContent = 'ERROR';
+                syncBadge.style.background = 'rgba(229, 75, 75, 0.15)';
+                syncBadge.style.color = '#e54b4b';
+            }
+            const errorMsg = document.getElementById('sync-error-msg');
+            if (errorMsg) {
+                errorMsg.textContent = `Sync error: ${err.message}`;
+                errorMsg.style.display = 'block';
+                setTimeout(() => { errorMsg.style.display = 'none'; }, 5000);
+            }
+        }
+    }
+
+    function updateSyncUI() {
+        const loggedOutDiv = document.getElementById('sync-logged-out');
+        const loggedInDiv = document.getElementById('sync-logged-in');
+        const syncBadge = document.getElementById('sync-badge');
+        const usernameDisplay = document.getElementById('sync-username-display');
+        const syncTimeDisplay = document.getElementById('sync-time-display');
+
+        const errorMsg = document.getElementById('sync-error-msg');
+        if (errorMsg) errorMsg.style.display = 'none';
+
+        if (syncToken && syncUsername) {
+            if (loggedOutDiv) loggedOutDiv.style.display = 'none';
+            if (loggedInDiv) loggedInDiv.style.display = 'flex';
+            if (usernameDisplay) usernameDisplay.textContent = syncUsername;
+            
+            if (syncBadge) {
+                syncBadge.textContent = 'ONLINE';
+                syncBadge.style.background = 'rgba(45, 138, 78, 0.15)';
+                syncBadge.style.color = '#2d8a4e';
+            }
+
+            HelloDB.getSetting('sync_last_time').then(lastTime => {
+                if (syncTimeDisplay) {
+                    if (lastTime) {
+                        const date = new Date(Number(lastTime));
+                        syncTimeDisplay.textContent = date.toLocaleTimeString() + ' ' + date.toLocaleDateString();
+                    } else {
+                        syncTimeDisplay.textContent = 'Never';
+                    }
+                }
+            });
+        } else {
+            if (loggedOutDiv) loggedOutDiv.style.display = 'flex';
+            if (loggedInDiv) loggedInDiv.style.display = 'none';
+            
+            if (syncBadge) {
+                syncBadge.textContent = 'OFFLINE';
+                syncBadge.style.background = 'rgba(128,128,128,0.15)';
+                syncBadge.style.color = 'var(--text-secondary)';
+            }
+        }
+    }
+
+    function updateSyncUIStatus(msg, type = 'info') {
+        const errorMsg = document.getElementById('sync-error-msg');
+        if (errorMsg) {
+            errorMsg.textContent = msg;
+            errorMsg.style.color = type === 'error' ? '#e54b4b' : 'var(--accent)';
+            errorMsg.style.display = 'block';
+        }
+    }
+
+    function showSyncError(msg) {
+        updateSyncUIStatus(msg, 'error');
     }
 
     // Public controller exports

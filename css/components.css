@@ -1351,7 +1351,16 @@
     cursor: pointer;
     z-index: 1;
     box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.15);
-    transition: background var(--transition-fast);
+    transition: background var(--transition-fast), opacity var(--transition-fast), visibility var(--transition-fast);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.delete-swipe-bg.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
 }
 
 .delete-swipe-bg:hover {
@@ -1363,6 +1372,8 @@
     z-index: 2;
     background: var(--bg-card);
     border-radius: var(--radius-md);
+    width: 100%;
+    box-sizing: border-box;
     transition: transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
@@ -1567,18 +1578,18 @@
 
 /* Cover Previews */
 /* Cover Previews */
-.midnight-stars-thumb { background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_12_35 PM.png") !important; background-size: cover; background-position: center; color: transparent; }
-.sakura-garden-thumb { background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_12_48 PM.png") !important; background-size: cover; background-position: center; color: transparent; }
-.autumn-harvest-thumb { background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_13_14 PM.png") !important; background-size: cover; background-position: center; color: transparent; }
-.minimal-zen-thumb { background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_14_55 PM.png") !important; background-size: cover; background-position: center; color: transparent; }
-.vintage-typewriter-thumb { background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_24_44 PM.png") !important; background-size: cover; background-position: center; color: transparent; }
+.midnight-stars-thumb { background-image: url("../front cover/midnight_stars.png") !important; background-size: cover; background-position: center; color: transparent; }
+.sakura-garden-thumb { background-image: url("../front cover/sakura_garden.png") !important; background-size: cover; background-position: center; color: transparent; }
+.autumn-harvest-thumb { background-image: url("../front cover/autumn_harvest.png") !important; background-size: cover; background-position: center; color: transparent; }
+.minimal-zen-thumb { background-image: url("../front cover/minimal_zen.png") !important; background-size: cover; background-position: center; color: transparent; }
+.vintage-typewriter-thumb { background-image: url("../front cover/vintage_typewriter.png") !important; background-size: cover; background-position: center; color: transparent; }
 
 /* Page Previews */
-.page-clean-thumb { background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_38 PM.png"); background-size: cover; background-position: center; }
-.page-parchment-thumb { background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_31 PM.png"); background-size: cover; background-position: center; }
-.page-sakura-thumb { background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_25 PM.png"); background-size: cover; background-position: center; }
-.page-midnight-thumb { background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_19 PM.png"); background-size: cover; background-position: center; }
-.page-lined-thumb { background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_44 PM.png"); background-size: cover; background-position: center; }
+.page-typewriter-thumb { background-image: url("../inside pages/vintage_typewriter.png"); background-size: cover; background-position: center; }
+.page-autumn-thumb { background-image: url("../inside pages/autumn_harvest.png"); background-size: cover; background-position: center; }
+.page-sakura-thumb { background-image: url("../inside pages/sakura_garden.png"); background-size: cover; background-position: center; }
+.page-midnight-thumb { background-image: url("../inside pages/midnight_stars.png"); background-size: cover; background-position: center; }
+.page-zen-thumb { background-image: url("../inside pages/minimal_zen.png"); background-size: cover; background-position: center; }
 
 /* Entries Checkbox List */
 .entries-filter-bar {
@@ -1803,7 +1814,7 @@
 }
 
 .preview-cover-stars {
-    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_12_48 PM.png") !important;
+    background-image: url("../front%20cover/ChatGPT%20Image%20Jun%2015%2C%202026%2C%2012_12_48%20PM.png") !important;
     background-size: cover;
     background-position: center;
     color: #FFFFFF;
@@ -1814,7 +1825,7 @@
     box-shadow: inset 0 0 100px rgba(0,0,0,0.4);
 }
 .preview-cover-stars.back {
-    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_30_14 PM.png") !important;
+    background-image: url("../back%20cover/ChatGPT%20Image%20Jun%2015%2C%202026%2C%2005_30_14%20PM.png") !important;
 }
 .preview-cover-stars::before {
     content: '';
@@ -1855,7 +1866,7 @@
 }
 
 .preview-cover-sakura {
-    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_12_35 PM.png") !important;
+    background-image: url("../front%20cover/ChatGPT%20Image%20Jun%2015%2C%202026%2C%2012_12_35%20PM.png") !important;
     background-size: cover;
     background-position: center;
     color: #4A1525;
@@ -1865,7 +1876,7 @@
     border: 8px solid #F8D3D9;
 }
 .preview-cover-sakura.back {
-    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_30_03 PM.png") !important;
+    background-image: url("../back%20cover/ChatGPT%20Image%20Jun%2015%2C%202026%2C%2005_30_03%20PM.png") !important;
 }
 .preview-cover-sakura::before {
     content: '';
@@ -1903,7 +1914,7 @@
 }
 
 .preview-cover-autumn {
-    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_13_14 PM.png") !important;
+    background-image: url("../front%20cover/ChatGPT%20Image%20Jun%2015%2C%202026%2C%2012_13_14%20PM.png") !important;
     background-size: cover;
     background-position: center;
     color: #FFFFFF;
@@ -1915,7 +1926,7 @@
     outline-offset: -12px;
 }
 .preview-cover-autumn.back {
-    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_30_36 PM.png") !important;
+    background-image: url("../back%20cover/ChatGPT%20Image%20Jun%2015%2C%202026%2C%2005_30_36%20PM.png") !important;
 }
 .preview-cover-autumn::before {
     content: '';
@@ -1951,7 +1962,7 @@
 }
 
 .preview-cover-zen {
-    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_14_55 PM.png") !important;
+    background-image: url("../front%20cover/ChatGPT%20Image%20Jun%2015%2C%202026%2C%2012_14_55%20PM.png") !important;
     background-size: cover;
     background-position: center;
     color: #333333;
@@ -1962,7 +1973,7 @@
     padding: 40px;
 }
 .preview-cover-zen.back {
-    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_30_49 PM.png") !important;
+    background-image: url("../back%20cover/ChatGPT%20Image%20Jun%2015%2C%202026%2C%2005_30_49%20PM.png") !important;
 }
 .preview-cover-zen::before {
     content: '';
@@ -2000,7 +2011,7 @@
 }
 
 .preview-cover-typewriter {
-    background-image: url("../front cover/ChatGPT Image Jun 15, 2026, 12_24_44 PM.png") !important;
+    background-image: url("../front%20cover/ChatGPT%20Image%20Jun%2015%2C%202026%2C%2012_24_44%20PM.png") !important;
     background-size: cover;
     background-position: center;
     color: #3E2723;
@@ -2011,7 +2022,7 @@
     padding: 30px;
 }
 .preview-cover-typewriter.back {
-    background-image: url("../back cover/ChatGPT Image Jun 15, 2026, 05_31_08 PM.png") !important;
+    background-image: url("../back%20cover/ChatGPT%20Image%20Jun%2015%2C%202026%2C%2005_31_08%20PM.png") !important;
 }
 .preview-cover-typewriter::before {
     content: '';
@@ -2047,14 +2058,14 @@
 }
 
 /* Inside Page Wallpaper Themes */
-.preview-page-clean {
-    background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_38 PM.png") !important;
+.preview-page-typewriter {
+    background-image: url("../inside pages/vintage_typewriter.png") !important;
     background-size: cover;
     background-position: center;
     color: #222222;
     border: 2px solid #EAE6DF;
 }
-.preview-page-clean::before {
+.preview-page-typewriter::before {
     content: '';
     position: absolute;
     inset: 12px;
@@ -2062,14 +2073,14 @@
     pointer-events: none;
 }
 
-.preview-page-parchment {
-    background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_31 PM.png") !important;
+.preview-page-autumn {
+    background-image: url("../inside pages/autumn_harvest.png") !important;
     background-size: cover;
     background-position: center;
     color: #3E2723;
     border: 4px solid #D0C5A9;
 }
-.preview-page-parchment::before {
+.preview-page-autumn::before {
     content: '';
     position: absolute;
     inset: 8px;
@@ -2078,7 +2089,7 @@
 }
 
 .preview-page-sakura {
-    background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_25 PM.png") !important;
+    background-image: url("../inside pages/sakura_garden.png") !important;
     background-size: cover;
     background-position: center;
     color: #4A1525;
@@ -2093,7 +2104,7 @@
 }
 
 .preview-page-midnight {
-    background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_19 PM.png") !important;
+    background-image: url("../inside pages/midnight_stars.png") !important;
     background-size: cover;
     background-position: center;
     color: #FFFFFF;
@@ -2107,23 +2118,12 @@
     pointer-events: none;
 }
 
-.preview-page-lined {
-    background-image: url("../inside pages/ChatGPT Image Jun 15, 2026, 05_31_44 PM.png") !important;
+.preview-page-zen {
+    background-image: url("../inside pages/minimal_zen.png") !important;
     background-size: cover;
     background-position: center;
-    padding-left: 50px;
     border: 2px solid #EAE6DF;
     color: #222222;
-}
-.preview-page-lined::before {
-    content: '';
-    position: absolute;
-    left: 40px;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: rgba(255, 0, 0, 0.15);
-    pointer-events: none;
 }
 
 /* Preview Typography & Headers */

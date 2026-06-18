@@ -9,7 +9,7 @@
 const HelloDB = (function() {
 
     const DB_NAME = 'HelloDiaryDB';
-    const DB_VERSION = 2;
+    const DB_VERSION = 3;
     let dbInstance = null;
 
     /**
@@ -70,6 +70,11 @@ const HelloDB = (function() {
                 // 5. Intruder Captures Store (stores unencrypted intruder snapshots)
                 if (!db.objectStoreNames.contains('intruder_captures')) {
                     db.createObjectStore('intruder_captures', { keyPath: 'id' });
+                }
+
+                // 6. Deleted Entries Store (tombstone store for background cloud sync)
+                if (!db.objectStoreNames.contains('deleted_entries')) {
+                    db.createObjectStore('deleted_entries', { keyPath: 'id' });
                 }
             };
         });
@@ -279,6 +284,7 @@ const HelloDB = (function() {
         const record = {
             id: entryObj.id || generateUUID(),
             date: entryObj.date || Date.now(),
+            updatedAt: entryObj.updatedAt || Date.now(),
             payload: ciphertext,
             iv: iv
         };
@@ -310,11 +316,15 @@ const HelloDB = (function() {
     async function deleteEntry(entryId) {
         const db = await initDatabase();
         return new Promise((resolve, reject) => {
-            const transaction = db.transaction(['entries', 'media'], 'readwrite');
+            const transaction = db.transaction(['entries', 'media', 'deleted_entries'], 'readwrite');
             
             // Delete entry
             const entriesStore = transaction.objectStore('entries');
             entriesStore.delete(entryId);
+
+            // Add to deleted_entries tombstone
+            const deletedStore = transaction.objectStore('deleted_entries');
+            deletedStore.put({ id: entryId, deletedAt: Date.now() });
 
             // Delete media matching entryId (via index query)
             const mediaStore = transaction.objectStore('media');
@@ -634,6 +644,29 @@ const HelloDB = (function() {
         });
     }
 
+    async function getDeletedEntries() {
+        const db = await initDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['deleted_entries'], 'readonly');
+            const store = transaction.objectStore('deleted_entries');
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = (event) => reject(event.target.error);
+        });
+    }
+
+    async function clearDeletedEntries(ids) {
+        if (!ids || ids.length === 0) return;
+        const db = await initDatabase();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['deleted_entries'], 'readwrite');
+            const store = transaction.objectStore('deleted_entries');
+            ids.forEach(id => store.delete(id));
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = (event) => reject(event.target.error);
+        });
+    }
+
     // Public API Exports
     return {
         initDatabase,
@@ -659,7 +692,9 @@ const HelloDB = (function() {
         saveIntruderCapture,
         getIntruderCaptures,
         deleteIntruderCapture,
-        clearIntruderCaptures
+        clearIntruderCaptures,
+        getDeletedEntries,
+        clearDeletedEntries
     };
 
 })();

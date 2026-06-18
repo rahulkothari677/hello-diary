@@ -751,6 +751,53 @@
                                 <input type="file" id="restore-json-input" accept=".json" style="display: none;">
                             </div>
                         </div>
+
+                        <!-- Cloud Sync Section -->
+                        <div class="glass-card" style="padding: var(--space-md);">
+                            <h3 class="font-title" style="margin-bottom: var(--space-md); font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                                <span>Cloud Sync (E2EE)</span>
+                                <span id="sync-badge" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: rgba(128,128,128,0.15); font-weight: 600; color: var(--text-secondary);">OFFLINE</span>
+                            </h3>
+                            
+                            <!-- Server URL Configuration -->
+                            <div style="margin-bottom: var(--space-md); display: flex; flex-direction: column; gap: 4px;">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Server URL</label>
+                                <input type="text" id="sync-server-url" value="http://localhost:3000" class="input" style="height: 32px; font-size: 0.8rem; padding: 4px 8px;">
+                            </div>
+
+                            <!-- Logged Out Mode -->
+                            <div id="sync-logged-out" style="display: flex; flex-direction: column; gap: var(--space-sm);">
+                                <p style="font-size: 0.75rem; color: var(--text-secondary); margin: 0; line-height: 1.4;">
+                                    Secure your diary entries with trusted end-to-end encrypted backup. Your entries are encrypted using your passcode key before sync.
+                                </p>
+                                <div style="display: flex; flex-direction: column; gap: 6px;">
+                                    <input type="text" id="sync-username" placeholder="Sync Account Username" class="input" style="height: 36px; font-size: 0.85rem; padding: 6px 10px;">
+                                    <input type="password" id="sync-password" placeholder="Sync Account Password" class="input" style="height: 36px; font-size: 0.85rem; padding: 6px 10px;">
+                                </div>
+                                <div style="display: flex; gap: var(--space-sm);">
+                                    <button class="btn btn--primary" id="btn-sync-login" style="flex: 1; height: 36px; font-size: 0.85rem;">Log In</button>
+                                    <button class="btn btn--outline" id="btn-sync-register" style="flex: 1; height: 36px; font-size: 0.85rem;">Sign Up</button>
+                                </div>
+                                <span id="sync-error-msg" style="font-size: 0.75rem; color: #e54b4b; text-align: center; display: none;"></span>
+                            </div>
+
+                            <!-- Logged In Mode -->
+                            <div id="sync-logged-in" style="display: none; flex-direction: column; gap: var(--space-sm);">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary);">
+                                        Logged in as: <strong id="sync-username-display" style="color: var(--accent);">user</strong>
+                                    </span>
+                                    <button class="btn btn--outline btn--sm" id="btn-sync-logout" style="padding: 4px 8px; font-size: 0.75rem;">Log Out</button>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-light); padding-top: var(--space-sm); margin-top: 4px;">
+                                    <span style="font-size: 0.78rem; color: var(--text-secondary);">
+                                        Last synced: <span id="sync-time-display">Never</span>
+                                    </span>
+                                    <button class="btn btn--primary btn--sm" id="btn-sync-now" style="padding: 6px 12px; font-size: 0.8rem;">Sync Now</button>
+                                </div>
+                                <span id="sync-success-msg" style="font-size: 0.75rem; color: #2d8a4e; text-align: center; display: none;"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1037,7 +1084,11 @@
 
 
         <!-- Main text writing core area -->
-        <div class="editor-body-wrapper">
+        <div class="editor-body-wrapper" style="position: relative;">
+            <div id="highlighter-active-badge" class="highlighter-active-badge" style="display: none;">
+                <span>🖍️ Highlighter Pen Active (Swipe words to highlight)</span>
+                <button id="btn-clear-highlighter" class="btn-clear-highlighter">✕ Turn Off</button>
+            </div>
             <div class="editor-content font-merriweather size-medium" id="rich-editor-field" contenteditable="true" data-placeholder="What is on your mind today? Write freely..."></div>
         </div>
 
@@ -1098,11 +1149,11 @@
         <!-- Text Highlight Picker -->
         <div id="dropdown-highlight" class="editor-dropdown grid-layout glass-card">
             <button class="color-circle color-circle--clear active" data-highlight="default" title="No Highlight"></button>
-            <button class="color-circle" data-highlight="#fef08a" style="background-color: #fef08a;" title="Yellow Highlight"></button>
-            <button class="color-circle" data-highlight="#bbf7d0" style="background-color: #bbf7d0;" title="Green Highlight"></button>
-            <button class="color-circle" data-highlight="#bfdbfe" style="background-color: #bfdbfe;" title="Blue Highlight"></button>
-            <button class="color-circle" data-highlight="#fbcfe8" style="background-color: #fbcfe8;" title="Pink Highlight"></button>
-            <button class="color-circle" data-highlight="#e9d5ff" style="background-color: #e9d5ff;" title="Purple Highlight"></button>
+            <button class="color-circle" data-highlight="rgba(254, 240, 138, 0.45)" style="background-color: #fef08a;" title="Yellow Highlight"></button>
+            <button class="color-circle" data-highlight="rgba(187, 247, 208, 0.45)" style="background-color: #bbf7d0;" title="Green Highlight"></button>
+            <button class="color-circle" data-highlight="rgba(191, 219, 254, 0.45)" style="background-color: #bfdbfe;" title="Blue Highlight"></button>
+            <button class="color-circle" data-highlight="rgba(251, 207, 232, 0.45)" style="background-color: #fbcfe8;" title="Pink Highlight"></button>
+            <button class="color-circle" data-highlight="rgba(233, 213, 255, 0.45)" style="background-color: #e9d5ff;" title="Purple Highlight"></button>
         </div>
 
         <!-- Sticker Picker Dropdown -->
@@ -1411,25 +1462,25 @@
                 <section class="sidebar-section">
                     <h3 class="section-title">3. Inside Page Design</h3>
                     <div class="preset-grid">
-                        <div class="preset-card active" data-page="clean-white">
-                            <div class="preset-card-preview page-clean-thumb"></div>
-                            <span class="preset-name">Clean White</span>
+                        <div class="preset-card active" data-page="vintage-typewriter">
+                            <div class="preset-card-preview page-typewriter-thumb"></div>
+                            <span class="preset-name">Vintage Typewriter</span>
                         </div>
-                        <div class="preset-card" data-page="parchment-journal">
-                            <div class="preset-card-preview page-parchment-thumb"></div>
-                            <span class="preset-name">Parchment Journal</span>
+                        <div class="preset-card" data-page="autumn-harvest">
+                            <div class="preset-card-preview page-autumn-thumb"></div>
+                            <span class="preset-name">Autumn Harvest</span>
                         </div>
-                        <div class="preset-card" data-page="sakura-blush">
+                        <div class="preset-card" data-page="sakura-garden">
                             <div class="preset-card-preview page-sakura-thumb"></div>
-                            <span class="preset-name">Sakura Blush</span>
+                            <span class="preset-name">Sakura Garden</span>
                         </div>
-                        <div class="preset-card" data-page="midnight-sky">
+                        <div class="preset-card" data-page="midnight-stars">
                             <div class="preset-card-preview page-midnight-thumb"></div>
-                            <span class="preset-name">Midnight Sky</span>
+                            <span class="preset-name">Midnight Stars</span>
                         </div>
-                        <div class="preset-card" data-page="notebook-lined">
-                            <div class="preset-card-preview page-lined-thumb"></div>
-                            <span class="preset-name">Notebook Lined</span>
+                        <div class="preset-card" data-page="minimal-zen">
+                            <div class="preset-card-preview page-zen-thumb"></div>
+                            <span class="preset-name">Minimalist Zen</span>
                         </div>
                     </div>
                 </section>

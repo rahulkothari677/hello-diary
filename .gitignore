@@ -4,3 +4,8 @@ package-lock.json
 .idea/
 android/.idea/
 *.log
+git_diff.txt
+server/node_modules/
+server/hellodiary.db
+server/.env
+

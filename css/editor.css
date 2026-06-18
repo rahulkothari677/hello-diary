@@ -252,6 +252,10 @@
     font-size: calc(var(--editor-font-size, 1.1rem) * var(--editor-font-scale, 1));
 }
 
+.editor-content.highlighter-active {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ctext y='24' font-size='24'%3E🖍️%3C/text%3E%3C/svg%3E") 0 24, pointer !important;
+}
+
 /* Selected fonts in action */
 .editor-content.font-merriweather { font-family: 'Merriweather', Georgia, serif; }
 .editor-content.font-lora { font-family: 'Lora', serif; }
@@ -818,6 +822,43 @@
         border-left: 1px solid var(--glass-border);
         border-right: 1px solid var(--glass-border);
     }
+}
+
+/* Highlighter Active Floating Alert Badge */
+.highlighter-active-badge {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(254, 240, 138, 0.95);
+    color: #451a03;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+    z-index: 1000;
+    border: 1px solid rgba(0,0,0,0.08);
+    pointer-events: auto;
+}
+
+.btn-clear-highlighter {
+    background: rgba(0,0,0,0.06);
+    border: none;
+    color: #451a03;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    transition: background var(--transition-fast);
+}
+
+.btn-clear-highlighter:hover {
+    background: rgba(0,0,0,0.12);
 }
 
 

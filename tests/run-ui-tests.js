@@ -83,6 +83,19 @@ async function main() {
             send('Runtime.enable');
             send('Page.enable');
 
+            ws.addEventListener('message', (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.method === 'Runtime.consoleAPICalled') {
+                    const args = msg.params.args;
+                    const text = args.map(arg => {
+                        if (arg.value !== undefined) return arg.value;
+                        if (arg.description !== undefined) return arg.description;
+                        return JSON.stringify(arg);
+                    }).join(' ');
+                    console.log('[BROWSER CONSOLE]', text);
+                }
+            });
+
             console.log('Loading app URL...');
             send('Page.navigate', { url: APP_URL });
             await sleep(2000);
@@ -573,7 +586,7 @@ async function main() {
             await evaluate('document.getElementById("btn-highlight-picker").click()');
             await sleep(300);
             
-            await evaluate('document.querySelector(\'#dropdown-highlight .color-circle[data-highlight="#fef08a"]\').click()');
+            await evaluate('document.querySelector(\'#dropdown-highlight .color-circle[data-highlight="rgba(254, 240, 138, 0.45)"]\').click()');
             await sleep(500);
             console.log('✓ Text highlight selected.');
 
@@ -1019,7 +1032,7 @@ async function main() {
 
             console.log('Selecting Midnight Sky inside page preset design...');
             await evaluate(`
-                document.querySelector('#screen-book-creator [data-page="midnight-sky"]').click();
+                document.querySelector('#screen-book-creator [data-page="midnight-stars"]').click();
             `);
             await sleep(300);
 
